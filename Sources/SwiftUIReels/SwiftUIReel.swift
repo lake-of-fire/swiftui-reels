@@ -1,12 +1,18 @@
+#if canImport(AppKit)
 import AppKit
+#endif
+#if canImport(UIKit)
+import UIKit
+#endif
 import Foundation
 import SwiftUI
 
-public struct StreamUI<Content: View>: View {
-    @State public var recorder: Recorder
-    @State private var windowSize: CGSize = .zero
+@available(iOS 16.0, macOS 13.0, *)
+public struct SwiftUIReel<Content: View>: View {
+    @StateObject private var recorder: Recorder
     @State private var isVideoSaved: Bool = false
     @State private var isAnimating = false
+    @Environment(\.openURL) private var openURL
 
     @MainActor
     public init(
@@ -40,10 +46,12 @@ public struct StreamUI<Content: View>: View {
 
         let contentView = AnyView(view)
 
-        _recorder = State(wrappedValue: Recorder(renderSettings: renderSettings))
+        _recorder = StateObject(wrappedValue: Recorder(renderSettings: renderSettings))
 
         recorder.setRenderer(view: contentView)
     }
+
+    public var recorderReference: Recorder { recorder }
 
     var borderColor: Color {
         if recorder.state == .recording {
@@ -89,14 +97,14 @@ public struct StreamUI<Content: View>: View {
                 // Sidebar
                 VStack {
                     VStack(alignment: .center, spacing: 10) {
-                        Text("~ StreamUI")
+                        Text("~ SwiftUIReels")
                             .font(.system(size: 24, weight: .black))
                             .foregroundColor(.black)
 
                         HStack(alignment: .center, spacing: 25) {
-                            SocialButton(imageName: "discord", url: "https://discord.com")
-                            SocialButton(imageName: "x", url: "https://twitter.com")
-                            SocialButton(imageName: "github", url: "https://github.com")
+                            SocialButton(imageName: "discord", url: URL(string: "https://discord.com"))
+                            SocialButton(imageName: "x", url: URL(string: "https://twitter.com"))
+                            SocialButton(imageName: "github", url: URL(string: "https://github.com"))
                         }
                     }
                     .padding(.top)
@@ -107,7 +115,7 @@ public struct StreamUI<Content: View>: View {
                     Spacer()
 
                     if let duration = recorder.renderSettings.captureDuration {
-                        ProgressView(value: Double(recorder.frameTimer.frameCount) / Double(Double(duration.components.seconds) * Double(recorder.renderSettings.fps)))
+                        ProgressView(value: Double(recorder.frameCount) / Double(Double(duration.components.seconds) * Double(recorder.renderSettings.fps)))
                             .progressViewStyle(LinearProgressViewStyle(tint: .red))
                             .padding()
                     }
@@ -152,8 +160,7 @@ public struct StreamUI<Content: View>: View {
                                 .background(Color.green)
                                 .cornerRadius(8)
                                 .onTapGesture {
-                                    let url = recorder.renderSettings.outputURL
-                                    NSWorkspace.shared.open(url)
+                                    openOutputURL()
                                 }
                         }
                         Spacer()
@@ -164,8 +171,12 @@ public struct StreamUI<Content: View>: View {
                 .background(Color(red: 0.95, green: 0.95, blue: 0.95))
             }
         }
-        .frame(width: NSScreen.main?.visibleFrame.width ?? 800 * 0.9,
-               height: NSScreen.main?.visibleFrame.height ?? 600 * 0.9)
+        #if canImport(AppKit)
+        .frame(width: containerSize.width,
+               height: containerSize.height)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #endif
         .onChange(of: recorder.state) { recorderState in
             if recorderState == .finished {
                 isVideoSaved = recorder.renderSettings.saveVideoFile
@@ -176,11 +187,34 @@ public struct StreamUI<Content: View>: View {
 //            isAnimating = recorder.isRecording && !isPaused
 //        }
     }
+
+    private var containerSize: CGSize {
+        #if canImport(AppKit)
+        let width = (NSScreen.main?.visibleFrame.width ?? 800) * 0.9
+        let height = (NSScreen.main?.visibleFrame.height ?? 600) * 0.9
+        return CGSize(width: width, height: height)
+        #elseif canImport(UIKit)
+        let bounds = UIScreen.main.bounds
+        return CGSize(width: bounds.width, height: bounds.height)
+        #else
+        return CGSize(width: 800, height: 600)
+        #endif
+    }
+
+    private func openOutputURL() {
+        let url = recorder.renderSettings.outputURL
+        #if canImport(AppKit)
+        NSWorkspace.shared.open(url)
+        #else
+        openURL(url)
+        #endif
+    }
 }
 
 struct SocialButton: View {
     let imageName: String
-    let url: String
+    let url: URL?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Image(packageResource: imageName, ofType: "png")
@@ -188,8 +222,8 @@ struct SocialButton: View {
             .aspectRatio(contentMode: .fit)
             .frame(height: 30)
             .onTapGesture {
-                if let url = URL(string: url) {
-                    NSWorkspace.shared.open(url)
+                if let url {
+                    openURL(url)
                 }
             }
     }
@@ -267,7 +301,7 @@ struct RecordingIndicator: View {
 // import SwiftUI
 //
 //// @MainActor
-// public struct StreamUI<Content: View>: View {
+// public struct SwiftUIReel<Content: View>: View {
 //    @State public var recorder: Recorder
 //
 //    @MainActor

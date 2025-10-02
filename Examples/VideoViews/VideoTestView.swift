@@ -8,7 +8,7 @@
 import AVFoundation
 import AVKit
 import Foundation
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 
 // class VideoFrameCaptureManager: ObservableObject {
@@ -80,8 +80,6 @@ import SwiftUI
 // }
 
 public struct VideoTestView: View {
-    @Environment(\.recorder) private var recorder
-
     let url = "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
 
     public init() {}

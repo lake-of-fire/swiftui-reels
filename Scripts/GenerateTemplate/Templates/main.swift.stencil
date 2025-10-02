@@ -1,23 +1,21 @@
-import AppKit
 import ArgumentParser
 import Foundation
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 import VideoViews
 
-@Observable
-class StreamUISettings {
-    var fps: Int32 = 30
-    var width: CGFloat = 1080
-    var height: CGFloat = 1920
-    var captureDuration: Int = 20
-    var saveVideoFile: Bool = true
+final class SwiftUIReelSettings: ObservableObject {
+    @Published var fps: Int32 = 30
+    @Published var width: CGFloat = 1080
+    @Published var height: CGFloat = 1920
+    @Published var captureDuration: Int = 20
+    @Published var saveVideoFile: Bool = true
 
-    var livestreamSettings: [LivestreamSettings] = []
+    @Published var livestreamSettings: [LivestreamSettings] = []
 }
 
 // Define the command line arguments
-struct StreamUICLIArgs: ParsableArguments {
+struct SwiftUIReelCLIArgs: ParsableArguments {
     @Option(help: "Frames per second")
     var fps: Int
 
@@ -40,8 +38,8 @@ struct StreamUICLIArgs: ParsableArguments {
     var streamKey: String?
 }
 
-extension StreamUICLIArgs {
-    func update(_ settings: StreamUISettings) {
+extension SwiftUIReelCLIArgs {
+    func update(_ settings: SwiftUIReelSettings) {
         settings.fps = Int32(fps)
         settings.width = CGFloat(width)
         settings.height = CGFloat(height)
@@ -62,22 +60,22 @@ extension StreamUICLIArgs {
 @main
 enum {{ productName }} {
     static func main() async throws {
-        var settings = StreamUISettings()
+        var settings = SwiftUIReelSettings()
         if CommandLine.argc > 1 {
             do {
-                let args = try StreamUICLIArgs.parse()
+                let args = try SwiftUIReelCLIArgs.parse()
                 args.update(settings)
             } catch {
                 print("Error: Could not parse arguments")
                 print(CommandLine.arguments.dropFirst().joined(separator: " "))
-                print(StreamUICLIArgs.helpMessage())
+                print(SwiftUIReelCLIArgs.helpMessage())
                 exit(1) // Exit if argument parsing fails
             }
         }
 
         print("Starting recorder with the following settings: \(settings)")
 
-        let recorder = createStreamUIRecorder(
+        let recorder = createSwiftUIReelRecorder(
             fps: settings.fps,
             width: settings.width,
             height: settings.height,

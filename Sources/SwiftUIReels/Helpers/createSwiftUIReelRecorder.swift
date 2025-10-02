@@ -9,8 +9,9 @@ import AVFoundation
 import Foundation
 import SwiftUI
 
+@available(iOS 16.0, macOS 13.0, *)
 @MainActor
-public func createStreamUIRecorder<Content: View>(
+public func createSwiftUIReelRecorder<Content: View>(
     fps: Int32,
     width: CGFloat,
     height: CGFloat,

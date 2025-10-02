@@ -5,8 +5,8 @@
 //  Created by Jordan Howlett on 6/16/24.
 //
 
-import AppKit
 import AVFoundation
+import CoreGraphics
 
 public struct LivestreamSettings {
     public var rtmpConnection: String
@@ -74,8 +74,8 @@ public struct RenderSettings {
             fatalError("Failed to get app container directory")
         }
 
-        // Create a "StreamUI" folder in the app's container
-        let streamUIDirectoryURL = containerURL.appendingPathComponent("StreamUI", isDirectory: true)
+        // Create a "SwiftUIReels" folder in the app's container
+        let streamUIDirectoryURL = containerURL.appendingPathComponent("SwiftUIReels", isDirectory: true)
         self.videosDirectoryURL = streamUIDirectoryURL.appendingPathComponent("videos", isDirectory: true)
         self.tempDirectoryURL = videosDirectoryURL.appendingPathComponent(".tmp", isDirectory: true)
         self.videoDirectoryURL = videosDirectoryURL.appendingPathComponent(name)

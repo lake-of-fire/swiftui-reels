@@ -5,11 +5,11 @@
 //  Created by Jordan Howlett on 6/25/24.
 //
 
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 
 public struct ImageTestView: View {
-    @Environment(\.recorder) private var recorder
+    @EnvironmentObject private var recorder: Recorder
 
     @State private var currentImageIndex = 0
 
@@ -34,7 +34,7 @@ public struct ImageTestView: View {
     private func startTimer() {
         Task {
             while true {
-                try await recorder?.controlledClock.clock.sleep(for: .milliseconds(1000))
+                try await recorder.controlledClock.clock.sleep(for: .milliseconds(1000))
                 currentImageIndex = (currentImageIndex + 1) % imageUrls.count
             }
         }

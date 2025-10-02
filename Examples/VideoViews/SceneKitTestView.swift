@@ -5,8 +5,11 @@
 //  Created by Jordan Howlett on 6/26/24.
 //
 
+#if canImport(AppKit)
+import AppKit
 import Foundation
 import SceneKit
+import SwiftUIReels
 import SwiftUI
 
 protocol SceneKitContentProvider {
@@ -291,7 +294,7 @@ struct ChildSceneKitView: SceneKitContentProvider {
 // }
 
 public struct SceneKitTestView: View {
-    @Environment(\.recorder) private var recorder
+    @EnvironmentObject private var recorder: Recorder
     @State private var scene: SCNScene?
     
     public init() {}
@@ -312,9 +315,9 @@ public struct SceneKitTestView: View {
                 .frame(width: 300, height: 400)
                 .background(Color.gray)
             
-            Text("Frame: \(recorder?.frameTimer.frameCount ?? 0)")
+            Text("Frame: \(recorder.frameCount)")
         }
-        .onChange(of: recorder?.frameTimer.frameCount) { _ in
+        .onChange(of: recorder.frameCount) { _ in
             updateBallPosition()
         }
     }
@@ -336,9 +339,8 @@ public struct SceneKitTestView: View {
     }
     
     private func updateBallPosition() {
-        guard let frameCount = recorder?.frameTimer.frameCount,
-              let ballNode = scene?.rootNode.childNode(withName: "ball", recursively: true)
-        else {
+        let frameCount = recorder.frameCount
+        guard let ballNode = scene?.rootNode.childNode(withName: "ball", recursively: true) else {
             return
         }
         
@@ -351,3 +353,4 @@ public struct SceneKitTestView: View {
         SCNTransaction.commit()
     }
 }
+#endif

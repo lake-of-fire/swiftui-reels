@@ -1,18 +1,19 @@
 import AVFoundation
-import ConsoleKit
+import Combine
 import HaishinKit
-import Observation
 import SwiftUI
 
-@Observable
-public class Recorder {
+@available(iOS 16.0, macOS 13.0, *)
+public final class Recorder: ObservableObject {
     public enum RecordingState {
         case idle, recording, paused, finished
     }
 
     private var pauseCounter: Int = 0
 
-    public private(set) var state: RecordingState = .idle
+    @Published public private(set) var state: RecordingState = .idle
+    @Published public private(set) var frameCount: Int = 0
+    @Published public private(set) var elapsedTime: TimeInterval = 0
 
     public var recordingTask: Task<Void, Error>?
     private let recordingCompletionContinuation = AsyncStream<Void>.makeStream()
@@ -49,7 +50,11 @@ public class Recorder {
 
     @MainActor
     public func setRenderer(view: AnyView) {
-        let viewWithEnv = AnyView(view.environment(\.recorder, self))
+        let viewWithEnv = AnyView(
+            view
+                .environmentObject(self)
+                .environment(\.recorder, self)
+        )
         renderer = ImageRenderer(
             content: SizedView(
                 content: viewWithEnv,
@@ -65,6 +70,8 @@ public class Recorder {
 
         state = .recording
         frameTimer.start()
+        frameCount = 0
+        elapsedTime = 0
 
         setupRecording()
         startRecordingTask()
@@ -102,6 +109,9 @@ public class Recorder {
                     await captureFrame()
 
                     await controlledClock.advance(by: frameDuration)
+                    await MainActor.run {
+                        self.elapsedTime = self.controlledClock.elapsedTime
+                    }
                     let end = clock.now
                     let elapsed = end - start
                     let sleepDuration = frameDuration - elapsed
@@ -222,6 +232,7 @@ public class Recorder {
         videoRecorder.appendFrame(cgImage: cgImage, frameTime: frameTime)
 
         frameTimer.incrementFrame()
+        frameCount = frameTimer.frameCount
     }
 
     public func calculateTotalFrames() -> Int {

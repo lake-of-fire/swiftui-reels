@@ -1,10 +1,10 @@
 
-# 〜StreamUI [BETA!]
+# 〜SwiftUIReels [BETA!]
 
 [![Team Chat](https://design.vapor.codes/images/discordchat.svg)](https://discord.gg/NpHj7brca4)
 [![MIT License](https://design.vapor.codes/images/mitlicense.svg)](LICENSE)
-[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FStreamUI%2FStreamUI%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/StreamUI/StreamUI)
-[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FStreamUI%2FStreamUI%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/StreamUI/StreamUI)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FSwiftUIReels%2FSwiftUIReels%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/SwiftUIReels/SwiftUIReels)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FSwiftUIReels%2FSwiftUIReels%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/SwiftUIReels/SwiftUIReels)
 <!--[![Swift 5.10+](https://design.vapor.codes/images/swift510up.svg)](https://swift.org)-->
 
 
@@ -17,20 +17,20 @@
 
 🎥 Make videos programmatically with SwiftUI (and even stream them live to Youtube, Twitch, or more). I am still actively developing this and testing it so please give feedback!
 
-## What is StreamUI?
+## What is SwiftUIReels?
 
-StreamUI is a library designed for SwiftUI that enables developers to create dynamic videos programmatically. It goes beyond traditional video generation tools like Remotion, offering real-time video rendering and live streaming capabilities. Ideal for applications ranging from faceless Tiktok/Youtube shorts videos to live event broadcasting, and much more. StreamUI lets you create video templates in SwiftUI and render them with dynamic inputs.
+SwiftUIReels is a library designed for SwiftUI that enables developers to create dynamic videos programmatically. It goes beyond traditional video generation tools like Remotion, offering real-time video rendering and live streaming capabilities. Ideal for applications ranging from faceless Tiktok/Youtube shorts videos to live event broadcasting, and much more. SwiftUIReels lets you create video templates in SwiftUI and render them with dynamic inputs.
 
-If you are familular, StreamUI is a SwiftUI alternative to the following, that supports things they do not like live streaming:
+If you are familular, SwiftUIReels is a SwiftUI alternative to the following, that supports things they do not like live streaming:
 
 * **[Remotion](https://www.remotion.dev)** 
 * **[Revideo](https://re.video)** 
 
 
-### This video is 100% SwiftUI code generated with StreamUI 👇
-[*Video created with StreamUI. See example code here*](https://github.com/StreamUI/streamui-starter)
+### This video is 100% SwiftUI code generated with SwiftUIReels 👇
+[*Video created with SwiftUIReels. See example code here*](https://github.com/SwiftUIReels/streamui-starter)
 
-https://github.com/StreamUI/StreamUI/assets/775808/99176027-a4f2-459f-a180-cc02a00f9ee9
+https://github.com/SwiftUIReels/SwiftUIReels/assets/775808/99176027-a4f2-459f-a180-cc02a00f9ee9
 
 * **Real-Time Video Rendering**
 <br> Generate and manipulate video content on the fly using Swift code. Integrate animations, text overlays, and media, adapting dynamically to user interactions or external data.
@@ -42,7 +42,7 @@ https://github.com/StreamUI/StreamUI/assets/775808/99176027-a4f2-459f-a180-cc02a
 <br> Generate dynamic videos. Pull in data from your database, react to outside events, generate batches of videos in different sizes, AB test videos in bulk. You can do it all. 
 
 
-| | Why StreamUI & why create videos with SwiftUI? |
+| | Why SwiftUIReels & why create videos with SwiftUI? |
 |-------|------------------------------------------------|
 | 📡 | The only programatically generated video library that supports Live streaming capabilities to platforms like YouTube and Twitch |
 | 🔄 | Videos are rendered in Real-time instead of requiring you to render on serverless functions in a parellel manner |
@@ -62,7 +62,7 @@ If people want support for < less please open a ticket. I wanted to use `@Observ
 ## Get started
 
 * **Download the starter:**
-	* `git clone https://github.com/StreamUI/streamui-starter`
+	* `git clone https://github.com/SwiftUIReels/streamui-starter`
 * **Or start from scratch, and create a Package.swift file**
 
 	```swift
@@ -77,13 +77,13 @@ If people want support for < less please open a ticket. I wanted to use `@Observ
 	        .macOS(.v14),
 	    ],
 	    dependencies: [
-	        .package(url: "https://github.com/StreamUI/StreamUI.git", from: "0.1.2"),
+	        .package(url: "https://github.com/SwiftUIReels/SwiftUIReels.git", from: "0.1.2"),
 	    ],
 	    targets: [
 	        .executableTarget(
 	            name: "MyNewExecutable",
 	            dependencies: [
-	                .product(name: "StreamUI", package: "StreamUI"),
+	                .product(name: "SwiftUIReels", package: "SwiftUIReels"),
 	            ]
 	        ),
 	    ]
@@ -94,7 +94,7 @@ If people want support for < less please open a ticket. I wanted to use `@Observ
 * **Simple Example**
 
 ```swift
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 
 public struct SwiftUIVideoExample: View {
@@ -131,7 +131,7 @@ public struct SwiftUIVideoExample: View {
 }
 
 
-let recorder = createStreamUIRecorder(
+let recorder = createSwiftUIReelRecorder(
     fps: 30,
     width: 1080,
     height: 1920,
@@ -163,7 +163,7 @@ await recorder.waitForRecordingCompletion()
 
 ## Docs
 
-### createStreamUIRecorder
+### createSwiftUIReelRecorder
 
 | Property           | Required | Type                                     | Description                                                                                         |
 |--------------------|----------|------------------------------------------|-----------------------------------------------------------------------------------------------------|
@@ -182,7 +182,7 @@ Creates a UI recorder that captures a SwiftUI view at a specified frame rate and
 
 #### Usage Example
 ```swift
-let recorder = createStreamUIRecorder(
+let recorder = createSwiftUIReelRecorder(
     fps: 30,
     width: 1920,
     height: 1080,
@@ -216,7 +216,7 @@ let settings = LivestreamSettings(
 )
 ```
 
-### StreamUI
+### SwiftUIReels
 
 | Property           | Required | Type                                     | Description                                                                                             |
 |--------------------|----------|------------------------------------------|---------------------------------------------------------------------------------------------------------|
@@ -230,13 +230,13 @@ let settings = LivestreamSettings(
 | content            | ✓        | SwiftUI View               | A SwiftUI view builder that provides the content to be captured.                                        |
 
 #### Description
-This is very much like the `createStreamUIRecorder` except it should pop up a view to see a live preview of whats being recorded and give you buttons to stop recording. It's not overly functional yet, but long term i'd like to have a more full fledged controls. `createStreamUIRecorder` is more versatile and could be integrated into MacOS apps, Viper (probably?). But `StreamUI` is good to see whats going on and iterate on your views.
+This is very much like the `createSwiftUIReelRecorder` except it should pop up a view to see a live preview of whats being recorded and give you buttons to stop recording. It's not overly functional yet, but long term i'd like to have a more full fledged controls. `createSwiftUIReelRecorder` is more versatile and could be integrated into MacOS apps, Viper (probably?). But `SwiftUIReels` is good to see whats going on and iterate on your views.
 
 #### Usage Example
 ```swift
 struct MyStreamableView: View {
     var body: some View {
-        StreamUI(
+        SwiftUIReel(
             fps: 30,
             width: 1920,
             height: 1080,
@@ -252,7 +252,7 @@ struct MyStreamableView: View {
 ```
 
 ![Screenshot](https://mogged-pullzone.b-cdn.net/screenshot.png)
-*Screenshot of the StreamUI wrapper interface*
+*Screenshot of the SwiftUIReels wrapper interface*
 
 ### Recorder methods
 
@@ -308,13 +308,13 @@ recorder.stopAudio(from: URL(string: "https://example.com/audiofile.mp3")!)
 
 ### Controlling Time
 
-One of the significant differences between StreamUI and Remotion is how time and animation control are managed. In Remotion, video rendering is parallelized, meaning that everything needs to be coded in relation to the current frame. This can make it more challenging to reason about and manage animations and state changes because they must all be defined relative to the current frame.
+One of the significant differences between SwiftUIReels and Remotion is how time and animation control are managed. In Remotion, video rendering is parallelized, meaning that everything needs to be coded in relation to the current frame. This can make it more challenging to reason about and manage animations and state changes because they must all be defined relative to the current frame.
 
-In contrast, since StreamUI renders the view in real time you don't need to worry about parallelization which allows a simpler way of programming videos by providing a shared clock that can be used to synchronize animations and state changes. This shared clock ensures that all time-based operations are in sync, making it easier to manage and reason about the flow of your animations and state transitions. If you program any changes in your views with this shared clock, then if you pause the recording (for example if you want to wait for an API call) then your views will nicely wait until you are recording again.
+In contrast, since SwiftUIReels renders the view in real time you don't need to worry about parallelization which allows a simpler way of programming videos by providing a shared clock that can be used to synchronize animations and state changes. This shared clock ensures that all time-based operations are in sync, making it easier to manage and reason about the flow of your animations and state transitions. If you program any changes in your views with this shared clock, then if you pause the recording (for example if you want to wait for an API call) then your views will nicely wait until you are recording again.
 
-#### Example with StreamUI
+#### Example with SwiftUIReels
 
-In StreamUI, you can utilize the `ControlledClock` class, which maintains a consistent and shared clock for all time-based operations. This allows you to advance the clock, sleep for specific durations, and reset the clock as needed. Here's an example:
+In SwiftUIReels, you can utilize the `ControlledClock` class, which maintains a consistent and shared clock for all time-based operations. This allows you to advance the clock, sleep for specific durations, and reset the clock as needed. Here's an example:
 
 ```swift
 private func startTimer() {
@@ -371,7 +371,7 @@ const showResults = currentFrameInRound >= roundDuration;
 
 #### Pausing Time
 
-In StreamUI, you have the ability to pause time, which is particularly useful for managing background tasks and preloading assets. By calling `recorder.pauseRecording`, you can halt the recording process and stop all animations. When you resume the recording, everything will pick up exactly where it left off, ensuring a smooth and synchronized experience. While you are paused, no frames get added to your video.
+In SwiftUIReels, you have the ability to pause time, which is particularly useful for managing background tasks and preloading assets. By calling `recorder.pauseRecording`, you can halt the recording process and stop all animations. When you resume the recording, everything will pick up exactly where it left off, ensuring a smooth and synchronized experience. While you are paused, no frames get added to your video.
 
 Our `StreamingImage`, `StreamingVideo`, and audio components are designed to automatically pause the recording while preloading assets, ensuring your assets are present and visible as soon as you want them in the video.
 
@@ -431,8 +431,8 @@ Please note. As it is written now we are at the whims of `ImageRenderer`, which 
 | VStack                   | ✅                                                                                        |
 | LinearGradient           | ✅                                                                                        |
 | Animations               | ✅ (They work, but seem to need to be based off the frame count / shared clock. See examples) |
-| VideoPlayer              | 🚧 (Only with StreamUI custom `StreamingVideoPlayer`. WIP)                                |
-| Audio                    | 🚧 (StreamUI has a custom audio player that works. WIP -> Expect issues)                  |
+| VideoPlayer              | 🚧 (Only with SwiftUIReels custom `StreamingVideoPlayer`. WIP)                                |
+| Audio                    | 🚧 (SwiftUIReels has a custom audio player that works. WIP -> Expect issues)                  |
 | ActivityIndicator        | 🚧 (I created a custom `StreamingActivityIndicator` you can use)                          |
 | Button                   | ❌                                                                                        |
 | Map                      | ❌                                                                                        |
@@ -459,14 +459,14 @@ Please note. As it is written now we are at the whims of `ImageRenderer`, which 
 
 ## Comparison
 
-[You can see code here comparing creation of a video with the different libraries](https://github.com/StreamUI/streamui-vs-remotion-vs-revideo)
+[You can see code here comparing creation of a video with the different libraries](https://github.com/SwiftUIReels/streamui-vs-remotion-vs-revideo)
 
 
-The biggest differences between StreamUI and Revideo & Remotion:
+The biggest differences between SwiftUIReels and Revideo & Remotion:
 
 * **React/JS vs SwiftUI**. Remotion uses React and Revideo uses generator functions. As a previous React lover, I strongly believe SwiftUI is the greater UI framework. Further, you can use any Swift library to help you out whereas with React and rendering videos in the browser canvas you are limited on what NPM modules you can use. 
-* **Livestreaming capability**. Neither Remotion or Revideo support live streaming or plan to ([as far as we can tell](https://www.remotion.dev/docs/miscellaneous/live-streaming)). For them, supporting live streaming would be a massize change. For StreamUI with how it's built, adding live streaming was incredibly simple. 
-* **Realtime rendering**. StreamUI can achieve > 100fps on SwiftUI views. Remotion/Revideo utilize the browsers canvas to generate images and encourage parallelizing your video rendering using serverless functions. I have seen estimates of 1 frame taking seconds/minutes to render. However, I believe Revideo does have some impressive optimizations achieving faster than real time rendering. [See Here](https://x.com/MatternJustus/status/1805679156560036237). However, one thing I personally didn't like when using remotion was that everything has to be built relative to the frame number so that the parallelization can do its thing. It's akward but makes sense of course, but StreamUI doesn't have that requirement as frames are added to the video in realtime on the device it's being run. Potentially in the future we could do parallelization to get faster than real time rendering if desired
+* **Livestreaming capability**. Neither Remotion or Revideo support live streaming or plan to ([as far as we can tell](https://www.remotion.dev/docs/miscellaneous/live-streaming)). For them, supporting live streaming would be a massize change. For SwiftUIReels with how it's built, adding live streaming was incredibly simple. 
+* **Realtime rendering**. SwiftUIReels can achieve > 100fps on SwiftUI views. Remotion/Revideo utilize the browsers canvas to generate images and encourage parallelizing your video rendering using serverless functions. I have seen estimates of 1 frame taking seconds/minutes to render. However, I believe Revideo does have some impressive optimizations achieving faster than real time rendering. [See Here](https://x.com/MatternJustus/status/1805679156560036237). However, one thing I personally didn't like when using remotion was that everything has to be built relative to the frame number so that the parallelization can do its thing. It's akward but makes sense of course, but SwiftUIReels doesn't have that requirement as frames are added to the video in realtime on the device it's being run. Potentially in the future we could do parallelization to get faster than real time rendering if desired
 * **Browser vs Native**. In remotion I was getting a lot of these depending on the NPM package I wanted to use. Maybe there is a way to work around it?
 `ERROR in ./node_modules/dotenv/lib/main.js 2:13-28
 Module not found: Error: Can't resolve 'path' in '/remotion/node_modules/dotenv/lib'
@@ -475,7 +475,7 @@ This is no longer the case. Verify if you need this module and configure a polyf
 
 
 ## Contributing
-This is an open-source project, contributions are welcome! The goal of StreamUI is to be the most powerful library for programatically creating and streaming videos. Please open tickets, submit PRs or [join the Discord](https://discord.gg/NpHj7brca4)
+This is an open-source project, contributions are welcome! The goal of SwiftUIReels is to be the most powerful library for programatically creating and streaming videos. Please open tickets, submit PRs or [join the Discord](https://discord.gg/NpHj7brca4)
 
 
 ## Inspired By
@@ -487,10 +487,10 @@ This is an open-source project, contributions are welcome! The goal of StreamUI 
 
 ## Star History
 
-<a href="https://star-history.com/#StreamUI/StreamUI&Date">
+<a href="https://star-history.com/#SwiftUIReels/SwiftUIReels&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=StreamUI/StreamUI&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=StreamUI/StreamUI&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=StreamUI/StreamUI&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=SwiftUIReels/SwiftUIReels&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=SwiftUIReels/SwiftUIReels&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=SwiftUIReels/SwiftUIReels&type=Date" />
   </picture>
 </a>

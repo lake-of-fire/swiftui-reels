@@ -4,12 +4,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "StreamUI",
+    name: "SwiftUIReels",
     platforms: [
         .macOS(.v14),
+        .iOS(.v15),
     ],
     products: [
-        .library(name: "StreamUI", targets: ["StreamUI"]),
+        .library(name: "SwiftUIReels", targets: ["SwiftUIReels"]),
         .executable(name: "CLIExample", targets: ["CLIExample"]),
         .library(name: "VideoViews", targets: ["VideoViews"]),
         .executable(name: "GenerateTemplate", targets: ["GenerateTemplate"]),
@@ -22,31 +23,29 @@ let package = Package(
         .package(url: "https://github.com/stencilproject/Stencil.git", from: "0.15.1"),
         .package(url: "https://github.com/pointfreeco/swift-clocks.git", from: "1.0.2"),
         .package(url: "https://github.com/kean/Nuke.git", from: "12.7.3"),
-        .package(url: "https://github.com/vapor/console-kit.git", from: "4.14.3"),
 
     ],
     targets: [
         .target(
-            name: "StreamUI",
+            name: "SwiftUIReels",
             dependencies: [
                 .product(name: "HaishinKit", package: "HaishinKit.swift"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Clocks", package: "swift-clocks"),
                 .product(name: "Nuke", package: "Nuke"),
-                .product(name: "ConsoleKit", package: "console-kit"),
             ],
-            path: "Sources/StreamUI",
+            path: "Sources/SwiftUIReels",
             resources: [
                 .process("Resources"),
             ]),
         .testTarget(
-            name: "StreamUITests",
-            dependencies: ["StreamUI"]),
+            name: "SwiftUIReelsTests",
+            dependencies: ["SwiftUIReels", "VideoViews"]),
 
         .executableTarget(
             name: "CLIExample",
             dependencies: [
-                "StreamUI",
+                "SwiftUIReels",
                 "VideoViews",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
@@ -55,7 +54,7 @@ let package = Package(
         .target(
             name: "VideoViews",
             dependencies: [
-                "StreamUI",
+                "SwiftUIReels",
             ],
             path: "Examples/VideoViews"),
 

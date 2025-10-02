@@ -6,11 +6,11 @@
 //
 
 import AVFoundation
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 
 public struct SoundTestView: View {
-    @Environment(\.recorder) private var recorder
+    @EnvironmentObject private var recorder: Recorder
 
     let shortAudioURL = URL(string: "http://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a")!
     let bonusAudioURL = URL(string: "http://commondatastorage.googleapis.com/codeskulptor-assets/week7-bounce.m4a")!
@@ -27,17 +27,17 @@ public struct SoundTestView: View {
 
             Task {
                 print("going to load")
-                try await recorder?.loadAudio(from: shortAudioURL)
-                try await recorder?.loadAudio(from: bonusAudioURL)
+                try await recorder.loadAudio(from: shortAudioURL)
+                try await recorder.loadAudio(from: bonusAudioURL)
                 print("loaded audio")
 
-                recorder?.playAudio(from: shortAudioURL)
+                recorder.playAudio(from: shortAudioURL)
 
-                try await recorder?.controlledClock.clock.sleep(for: .seconds(3.0))
-                recorder?.playAudio(from: bonusAudioURL)
-                try await recorder?.controlledClock.clock.sleep(for: .seconds(1.0))
+                try await recorder.controlledClock.clock.sleep(for: .seconds(3.0))
+                recorder.playAudio(from: bonusAudioURL)
+                try await recorder.controlledClock.clock.sleep(for: .seconds(1.0))
 
-                recorder?.playAudio(from: shortAudioURL)
+                recorder.playAudio(from: shortAudioURL)
 
 //                recorder?.playAudio()
             }

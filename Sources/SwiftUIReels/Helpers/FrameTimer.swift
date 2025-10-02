@@ -8,8 +8,7 @@
 import CoreMedia
 import Foundation
 
-@Observable
-public class FrameTimer {
+public final class FrameTimer {
     private var startTime: CMTime?
     public var frameCount: Int = 0
     private let frameRate: Double

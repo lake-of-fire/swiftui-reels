@@ -2,8 +2,7 @@ import Clocks
 import CoreMedia
 import SwiftUI
 
-@Observable
-public class ControlledClock {
+public final class ControlledClock {
     public var elapsedTime: TimeInterval = 0
     public var clock: TestClock<Duration>
 

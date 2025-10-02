@@ -1,12 +1,11 @@
-import AppKit
 import ArgumentParser
 import Foundation
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 import VideoViews
 
 // @Observable
-// class StreamUISettings {
+// class SwiftUIReelSettings {
 //    var fps: Int32 = 30
 //    var width: CGFloat = 1080
 //    var height: CGFloat = 1920
@@ -17,7 +16,7 @@ import VideoViews
 // }
 //
 //// Define the command line arguments
-// struct StreamUICLIArgs: ParsableArguments {
+// struct SwiftUIReelCLIArgs: ParsableArguments {
 //    @Option(help: "Frames per second")
 //    var fps: Int
 //
@@ -40,8 +39,8 @@ import VideoViews
 //    var streamKey: String?
 // }
 //
-// extension StreamUICLIArgs {
-//    func update(_ settings: StreamUISettings) {
+// extension SwiftUIReelCLIArgs {
+//    func update(_ settings: SwiftUIReelSettings) {
 //        settings.fps = Int32(fps)
 //        settings.width = CGFloat(width)
 //        settings.height = CGFloat(height)
@@ -63,16 +62,16 @@ import VideoViews
 // struct CLIExample: App {
 //    @Environment(\.displayScale) private var displayScale
 //
-//    @State private var settings: StreamUISettings = {
-//        let settings = StreamUISettings()
+//    @State private var settings: SwiftUIReelSettings = {
+//        let settings = SwiftUIReelSettings()
 //        if CommandLine.argc > 1 {
 //            do {
-//                let args = try StreamUICLIArgs.parse()
+//                let args = try SwiftUIReelCLIArgs.parse()
 //                args.update(settings)
 //            } catch {
 //                print("Error: Could not parse arguments")
 //                print(CommandLine.arguments.dropFirst().joined(separator: " "))
-//                print(StreamUICLIArgs.helpMessage())
+//                print(SwiftUIReelCLIArgs.helpMessage())
 //                exit(1) // Exit if argument parsing fails
 //            }
 //        } else {
@@ -90,7 +89,7 @@ import VideoViews
 //
 //    var body: some Scene {
 //        WindowGroup {
-//            StreamUI(
+//            SwiftUIReel(
 //                fps: settings.fps,
 //                width: settings.width,
 //                height: settings.height,
@@ -120,7 +119,7 @@ struct CLIExample: App {
 
     var body: some Scene {
         WindowGroup {
-            StreamUI(
+            SwiftUIReel(
                 fps: 30,
                 width: 1080,
                 height: 1920,
@@ -137,7 +136,7 @@ struct CLIExample: App {
 // @main
 // enum CLIExample {
 //    static func main() async throws {
-//        let recorder = createStreamUIRecorder(
+//        let recorder = createSwiftUIReelRecorder(
 //            fps: 30,
 //            width: 1080,
 //            height: 1920,

@@ -1,9 +1,9 @@
 import AVFoundation
-import StreamUI
+import SwiftUIReels
 import SwiftUI
 
 public struct BasicCounterView: View {
-    @Environment(\.recorder) private var recorder
+    @EnvironmentObject private var recorder: Recorder
 
     @State private var counter: Int
     @State private var timer: Timer?
@@ -26,24 +26,16 @@ public struct BasicCounterView: View {
                 .foregroundColor(.green)
                 .padding()
 
-            Text("Counter: \(recorder?.controlledClock.elapsedTime)")
+            Text("Counter: \(recorder.elapsedTime)")
                 .font(.largeTitle)
                 .foregroundColor(.green)
                 .padding()
 
-            if let frameCount = recorder?.frameTimer.frameCount {
-                Text("Current Frame -> \(frameCount)")
-                    .font(.largeTitle)
-                    .foregroundColor(.orange)
-                    .foregroundColor(.green)
-                    .padding()
-            } else {
-                Text("No frame count")
-                    .font(.largeTitle)
-                    .foregroundColor(.orange)
-                    .foregroundColor(.green)
-                    .padding()
-            }
+            Text("Current Frame -> \(recorder.frameCount)")
+                .font(.largeTitle)
+                .foregroundColor(.orange)
+                .foregroundColor(.green)
+                .padding()
         }
 //        .onChange(of: recorder?.frameCount) { _ in
         ////            print("new frame count", newCount)
@@ -84,7 +76,7 @@ public struct BasicCounterView: View {
         Task {
             while true {
                 //                print("RECORDER COUNT", recorder?.frameCount)
-                try await recorder?.controlledClock.clock.sleep(for: .seconds(1.0))
+                try await recorder.controlledClock.clock.sleep(for: .seconds(1.0))
                 //                try await recorder?.clock.sleep(for: .seconds(1.0 / Double(30)))
                 counter += 1
             }

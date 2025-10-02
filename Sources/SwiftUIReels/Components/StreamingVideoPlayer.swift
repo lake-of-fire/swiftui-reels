@@ -2,18 +2,21 @@ import AVFoundation
 import Combine
 import SwiftUI
 
+@available(iOS 16.0, macOS 13.0, *)
 public struct StreamingVideoPlayer: View {
-    @Environment(\.recorder) private var recorder
-    @State private var videoFrameCaptureManager: VideoFrameCaptureManager?
-    private var url: URL
+    @EnvironmentObject private var recorder: Recorder
+    @StateObject private var videoFrameCaptureManager: VideoFrameCaptureManager
+    @State private var callbacksConfigured = false
+    private let url: URL
 
     public init(url: URL) {
+        _videoFrameCaptureManager = StateObject(wrappedValue: VideoFrameCaptureManager(url: url))
         self.url = url
     }
 
     public var body: some View {
         Group {
-            if let frame = videoFrameCaptureManager?.frame {
+            if let frame = videoFrameCaptureManager.frame {
                 Image(decorative: frame, scale: 1.0, orientation: .up)
                     .resizable()
                     .scaledToFit()
@@ -22,31 +25,40 @@ public struct StreamingVideoPlayer: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
-            recorder?.pauseRecording()
-            videoFrameCaptureManager = VideoFrameCaptureManager(url: url)
-            setupCallbacks()
+            recorder.pauseRecording()
+            configureCallbacksIfNeeded()
+            videoFrameCaptureManager.start()
+        }
+        .onDisappear {
+            videoFrameCaptureManager.stop()
+            recorder.resumeRecording()
         }
     }
 
     private func setupCallbacks() {
-        videoFrameCaptureManager?.videoLoaded
+        videoFrameCaptureManager.videoLoaded
             .sink {
                 print("Video has loaded")
-                recorder?.resumeRecording()
+                recorder.resumeRecording()
             }
-            .store(in: &videoFrameCaptureManager!.cancellables)
+            .store(in: &videoFrameCaptureManager.cancellables)
 
-        videoFrameCaptureManager?.videoLoading
+        videoFrameCaptureManager.videoLoading
             .sink {
                 print("Video is loading")
             }
-            .store(in: &videoFrameCaptureManager!.cancellables)
+            .store(in: &videoFrameCaptureManager.cancellables)
+    }
+
+    private func configureCallbacksIfNeeded() {
+        guard !callbacksConfigured else { return }
+        setupCallbacks()
+        callbacksConfigured = true
     }
 }
 
-@Observable
-class VideoFrameCaptureManager {
-    var frame: CGImage?
+final class VideoFrameCaptureManager: ObservableObject {
+    @Published var frame: CGImage?
     var videoLoaded = PassthroughSubject<Void, Never>()
     var videoLoading = PassthroughSubject<Void, Never>()
 
@@ -54,8 +66,11 @@ class VideoFrameCaptureManager {
     private var videoOutput: AVPlayerItemVideoOutput
     public var cancellables: Set<AnyCancellable> = []
     private var fps: Double
+    private var timeObserver: Any?
+    private let url: URL
 
     init(url: URL) {
+        self.url = url
         self.fps = 30.0 // Default FPS
         self.player = AVPlayer(url: url)
 
@@ -70,9 +85,20 @@ class VideoFrameCaptureManager {
         }
 
         player.isMuted = true // Disable audio
+    }
 
+    func start() {
+        guard timeObserver == nil else { return }
         player.play()
         addPeriodicTimeObserver()
+    }
+
+    func stop() {
+        player.pause()
+        if let observer = timeObserver {
+            player.removeTimeObserver(observer)
+            timeObserver = nil
+        }
     }
 
     private func addObservers(to item: AVPlayerItem) {
@@ -92,7 +118,7 @@ class VideoFrameCaptureManager {
 
     private func addPeriodicTimeObserver() {
         let timeInterval = CMTime(seconds: 1.0 / fps, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        player.addPeriodicTimeObserver(forInterval: timeInterval, queue: .main) { [weak self] time in
+        timeObserver = player.addPeriodicTimeObserver(forInterval: timeInterval, queue: .main) { [weak self] time in
             self?.captureCurrentFrame(at: time)
         }
     }

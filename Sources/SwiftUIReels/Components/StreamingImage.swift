@@ -12,12 +12,13 @@ public enum ScaleType {
     case fit, fill
 }
 
+@available(iOS 16.0, macOS 13.0, *)
 public struct StreamingImage: View {
-    @Environment(\.recorder) private var recorder
+    @EnvironmentObject private var recorder: Recorder
 
     let url: URL?
     private let scaleType: ScaleType
-    @State private var image: NSImage? = nil
+    @State private var image: PlatformImage? = nil
 
     public init(url: URL?, scaleType: ScaleType = .fill) {
         self.url = url
@@ -27,16 +28,16 @@ public struct StreamingImage: View {
     public var body: some View {
         VStack {
             if let image = image {
-                Image(nsImage: image)
+                platformImageView(image)
                     .resizable()
                     .aspectRatio(contentMode: scaleType == .fill ? .fill : .fit)
                     .onAppear {
-                        recorder?.resumeRecording()
+                        recorder.resumeRecording()
                     }
             }
         }
         .onAppear {
-            recorder?.pauseRecording()
+            recorder.pauseRecording()
             Task {
                 await loadImage()
             }
@@ -51,5 +52,15 @@ public struct StreamingImage: View {
         } catch {
             LoggerHelper.shared.error("Failed to preload image: \(error)")
         }
+    }
+
+    private func platformImageView(_ image: PlatformImage) -> Image {
+        #if canImport(UIKit)
+        Image(uiImage: image)
+        #elseif canImport(AppKit)
+        Image(nsImage: image)
+        #else
+        Image(systemName: "photo")
+        #endif
     }
 }

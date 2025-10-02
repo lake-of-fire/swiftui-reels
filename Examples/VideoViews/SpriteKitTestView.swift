@@ -5,10 +5,13 @@
 //  Created by Jordan Howlett on 6/20/24.
 //
 
+#if canImport(AppKit)
+import AppKit
 import AVFoundation
 import Foundation
 import SceneKit
 import SpriteKit
+import SwiftUIReels
 import SwiftUI
 
 class Ball: SCNNode {
@@ -224,7 +227,7 @@ class Ball: SCNNode {
 // }
 
 public struct SpriteKitTestView: View {
-    @Environment(\.recorder) private var recorder
+    @EnvironmentObject private var recorder: Recorder
 
     @State private var counter: Int = 0
     @State private var timer: Timer?
@@ -234,7 +237,7 @@ public struct SpriteKitTestView: View {
     public init() {}
 
     var newFrameCount: Int {
-        print("recorder count", recorder?.frameTimer.frameCount)
+        print("recorder count", recorder.frameCount)
         return 10
     }
 
@@ -267,17 +270,14 @@ public struct SpriteKitTestView: View {
                     startCircleAnimation()
                 }
         }
-        .onChange(of: recorder?.frameTimer.frameCount) { newCount in
-            print("new frame count", recorder?.frameTimer.frameCount, newCount)
+        .onChange(of: recorder.frameCount) { newCount in
+            print("new frame count", recorder.frameCount, newCount)
             updateCircleAnimation()
         }
     }
 
     private func scaleEffectBasedOnFrameCount() -> CGFloat {
-        if let frameCount = recorder?.frameTimer.frameCount {
-            return 1.0 + 0.5 * sin(Double(frameCount) / 10.0)
-        }
-        return 1.0
+        return 1.0 + 0.5 * sin(Double(recorder.frameCount) / 10.0)
     }
 
     private func startCircleAnimation() {
@@ -288,11 +288,11 @@ public struct SpriteKitTestView: View {
     }
 
     private func updateCircleAnimation() {
-        if let frameCount = recorder?.frameTimer.frameCount {
-            withAnimation(.linear(duration: 0.5)) {
-                circleSize = 100 + CGFloat(frameCount % 50)
-                circleColor = frameCount % 2 == 0 ? .red : .blue
-            }
+        let frameCount = recorder.frameCount
+        withAnimation(.linear(duration: 0.5)) {
+            circleSize = 100 + CGFloat(frameCount % 50)
+            circleColor = frameCount % 2 == 0 ? .red : .blue
         }
     }
 }
+#endif
