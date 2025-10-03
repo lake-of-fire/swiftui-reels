@@ -7,6 +7,7 @@
 
 import Foundation
 
+@available(iOS 16.0, macOS 13.0, *)
 extension Duration {
     var inMilliseconds: Double {
         let v = components

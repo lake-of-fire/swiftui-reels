@@ -18,6 +18,7 @@ public func createSwiftUIReelRecorder<Content: View>(
     displayScale: CGFloat,
     captureDuration: Duration? = nil,
     saveVideoFile: Bool = true,
+    audioEnabled: Bool = true,
     livestreamSettings: [LivestreamSettings]? = nil,
     @ViewBuilder content: @escaping () -> Content
 ) -> Recorder {
@@ -38,6 +39,7 @@ public func createSwiftUIReelRecorder<Content: View>(
         displayScale: displayScale,
         captureDuration: captureDuration,
         saveVideoFile: saveVideoFile,
+        audioEnabled: audioEnabled,
         livestreamSettings: livestreamSettings
     )
 

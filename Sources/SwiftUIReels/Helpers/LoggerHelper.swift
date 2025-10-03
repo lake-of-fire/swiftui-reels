@@ -5,15 +5,17 @@
 //  Created by Jordan Howlett on 6/27/24.
 //
 
+import Foundation
 import Logging
 
 // Singleton Logger Helper Class
-class LoggerHelper {
+final class LoggerHelper: @unchecked Sendable {
     // Shared instance
     static let shared = LoggerHelper()
 
     // Private logger instance
     private var logger: Logger
+    private let queue = DispatchQueue(label: "com.swiftuireels.logger", qos: .utility)
 
     // Private initializer to prevent external instantiation
     private init() {
@@ -58,20 +60,26 @@ class LoggerHelper {
 
     // Method to log a message at a specific level with optional metadata
     private func log(level: Logger.Level, message: String, metadata: Logger.Metadata?) {
-        if let metadata = metadata {
-            logger.log(level: level, "\(message)", metadata: metadata)
-        } else {
-            logger.log(level: level, "\(message)")
+        queue.sync {
+            if let metadata = metadata {
+                logger.log(level: level, "\(message)", metadata: metadata)
+            } else {
+                logger.log(level: level, "\(message)")
+            }
         }
     }
 
     // Method to set metadata
     func setMetadata(key: String, value: String) {
-        logger[metadataKey: key] = .string(value)
+        queue.sync {
+            logger[metadataKey: key] = .string(value)
+        }
     }
 
     // Method to remove metadata
     func removeMetadata(key: String) {
-        logger[metadataKey: key] = nil
+        queue.sync {
+            logger[metadataKey: key] = nil
+        }
     }
 }

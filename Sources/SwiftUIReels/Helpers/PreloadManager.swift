@@ -10,7 +10,7 @@ import Combine
 import Foundation
 import Nuke
 
-class PreloadManager {
+final class PreloadManager: @unchecked Sendable {
     static let shared = PreloadManager()
     
     private let imagePrefetcher: ImagePrefetcher
@@ -30,7 +30,7 @@ class PreloadManager {
     
     // Preload images using Nuke
     func preloadImage(from url: URL) async throws {
-        try await imagePipeline.image(for: url)
+        _ = try await imagePipeline.image(for: url)
     }
     
     func image(from url: URL) async throws -> PlatformImage {
@@ -60,7 +60,7 @@ class PreloadManager {
         if url.isImage {
             try await preloadImage(from: url)
         } else {
-            try await preloadMedia(from: url)
+            _ = try await preloadMedia(from: url)
         }
     }
 }

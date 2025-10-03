@@ -8,7 +8,9 @@ enum AudioRecorderError: Error {
 
 let hz = 44100.0
 
-public class AudioRecorder {
+@available(iOS 16.0, macOS 13.0, *)
+@MainActor
+public final class AudioRecorder {
     public var renderSettings: RenderSettings
     weak var parentRecorder: Recorder?
     private var audioInput: AVAssetWriterInput?
@@ -35,6 +37,7 @@ public class AudioRecorder {
     }
 
     func setupAudioInput() {
+        guard renderSettings.audioEnabled else { return }
         guard let assetWriter = parentRecorder?.assetWriter else {
             LoggerHelper.shared.error("No asset writer")
             return
@@ -81,7 +84,7 @@ public class AudioRecorder {
         do {
             audioEngine.prepare()
             try audioEngine.start()
-            Task {
+            Task { @MainActor in
                 await self.processAudioSamples()
             }
         } catch {
@@ -90,16 +93,19 @@ public class AudioRecorder {
     }
 
     private func processAudioSamples() async {
+        guard renderSettings.audioEnabled else { return }
         for await audioSample in audioStream.stream {
             await appendAudioBuffer(audioSample.buffer, at: audioSample.time)
         }
     }
 
     public func addToStream(_ buffer: AVAudioPCMBuffer, at time: CMTime) {
+        guard renderSettings.audioEnabled else { return }
         audioStream.enqueue(buffer, withTime: time)
     }
 
-    public func appendAudioBuffer(_ buffer: AVAudioPCMBuffer, at time: CMTime) {
+    public func appendAudioBuffer(_ buffer: AVAudioPCMBuffer, at time: CMTime) async {
+        guard renderSettings.audioEnabled else { return }
         guard parentRecorder?.state == .recording else {
             return
         }
@@ -173,11 +179,14 @@ public class AudioRecorder {
             if !audioInput.append(sampleBuffer) {
                 LoggerHelper.shared.error("[AUDIO] Failed to append audio sample buffer")
             }
-            parentRecorder?.rtmpStreaming.appendSampleBuffer(sampleBuffer)
+            if let recorder = parentRecorder {
+                await recorder.rtmpStreaming.appendSampleBuffer(sampleBuffer)
+            }
         }
     }
 
     func loadAudio(from url: URL) async throws {
+        guard renderSettings.audioEnabled else { return }
         let localURL = try await PreloadManager.shared.preloadMedia(from: url)
 
         do {
@@ -192,6 +201,7 @@ public class AudioRecorder {
     }
 
     public func playAudio(from url: URL) {
+        guard renderSettings.audioEnabled else { return }
         guard let audioBuffer = audioBuffers[url] else {
             LoggerHelper.shared.error("No audio loaded for \(url)")
             return
@@ -211,9 +221,9 @@ public class AudioRecorder {
 
         let bufferSize = AVAudioFrameCount(0.1 * hz) // 100 ms buffer
         playerNode.installTap(onBus: 0, bufferSize: bufferSize, format: commonFormat) { [weak self] buffer, when in
-
-            if let frameTime = self?.frameTimer?.getCurrentFrameTime() {
-                self?.addToStream(buffer, at: when.toCMTime())
+            guard let self else { return }
+            Task { @MainActor in
+                self.addToStream(buffer, at: when.toCMTime())
             }
         }
 
@@ -240,8 +250,6 @@ public class AudioRecorder {
         }
 
         let channelCount = buffer.format.channelCount
-        let sampleSize = buffer.format.streamDescription.pointee.mBytesPerFrame / UInt32(channelCount)
-
         for channel in 0 ..< channelCount {
             guard let src = buffer.floatChannelData?[Int(channel)],
                   let dst = newBuffer.floatChannelData?[Int(channel)]
@@ -249,7 +257,7 @@ public class AudioRecorder {
                 continue
             }
 
-            dst.assign(from: src.advanced(by: Int(start)), count: Int(frameCount))
+            dst.update(from: src.advanced(by: Int(start)), count: Int(frameCount))
         }
 
         newBuffer.frameLength = frameCount
@@ -257,6 +265,7 @@ public class AudioRecorder {
     }
 
     public func stopAudio(from url: URL) {
+        guard renderSettings.audioEnabled else { return }
         guard let playerNode = playerNodes[url] else { return }
         playerNode.stop()
         playerNode.removeTap(onBus: 0)
@@ -266,18 +275,21 @@ public class AudioRecorder {
     }
 
     func pauseAudio(from url: URL) {
+        guard renderSettings.audioEnabled else { return }
         guard let playerNode = playerNodes[url] else { return }
         playerNode.pause()
         playingAudioSources.remove(url)
     }
 
     func resumeAudio(from url: URL) {
+        guard renderSettings.audioEnabled else { return }
         guard let playerNode = playerNodes[url] else { return }
         playerNode.play()
         playingAudioSources.insert(url)
     }
 
     public func pauseAllAudio() {
+        guard renderSettings.audioEnabled else { return }
         for url in playingAudioSources {
             if let playerNode = playerNodes[url] {
                 playerNode.pause()
@@ -286,6 +298,7 @@ public class AudioRecorder {
     }
 
     public func resumeAllAudio() {
+        guard renderSettings.audioEnabled else { return }
         for url in playingAudioSources {
             if let playerNode = playerNodes[url] {
                 playerNode.play()
@@ -294,6 +307,7 @@ public class AudioRecorder {
     }
 
     func stopAllAudio() {
+        guard renderSettings.audioEnabled else { return }
         for playerNode in playerNodes.values {
             playerNode.stop()
             audioEngine.detach(playerNode)
@@ -304,6 +318,7 @@ public class AudioRecorder {
 //    func startRecording() {}
 
     func stopRecording() {
+        guard renderSettings.audioEnabled else { return }
         audioEngine.stop()
         for playerNode in playerNodes.values {
             playerNode.stop()
@@ -322,13 +337,7 @@ public class AudioRecorder {
             return buffer
         }
 
-        do {
-            try converter.convert(to: convertedBuffer, error: nil, withInputFrom: inputBlock)
-        } catch {
-            LoggerHelper.shared.error("Error converting buffer: \(error)")
-            return nil
-        }
-
+        converter.convert(to: convertedBuffer, error: nil, withInputFrom: inputBlock)
         return convertedBuffer
     }
 }

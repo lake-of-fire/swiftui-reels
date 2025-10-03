@@ -13,6 +13,7 @@ import Metal
 import SwiftUI
 import VideoToolbox
 
+@available(iOS 16.0, macOS 13.0, *)
 extension VideoRecorder {
     func createCMSampleBuffer(from pixelBuffer: CVPixelBuffer, presentationTime: CMTime) -> CMSampleBuffer? {
         var sampleBuffer: CMSampleBuffer?

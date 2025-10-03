@@ -22,6 +22,7 @@ public struct LivestreamSettings {
     }
 }
 
+@available(iOS 16.0, macOS 13.0, *)
 public struct RenderSettings {
     public var name: String
     public var width: Int
@@ -32,6 +33,7 @@ public struct RenderSettings {
 
     public var avCodecKey = AVVideoCodecType.h264
     public var saveVideoFile: Bool
+    public var audioEnabled: Bool
 
     public var videoFilenameExt = "mp4"
     public var videosDirectoryURL: URL
@@ -50,6 +52,7 @@ public struct RenderSettings {
         displayScale: CGFloat,
         captureDuration: Duration?,
         saveVideoFile: Bool = true,
+        audioEnabled: Bool = true,
         livestreamSettings: [LivestreamSettings]?
     ) {
         self.name = name
@@ -60,6 +63,7 @@ public struct RenderSettings {
         self.displayScale = displayScale
         self.livestreamSettings = livestreamSettings
         self.saveVideoFile = saveVideoFile
+        self.audioEnabled = audioEnabled
 
         // Generate a short timestamp
         let dateFormatter = DateFormatter()

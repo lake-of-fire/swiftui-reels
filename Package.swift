@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -11,18 +11,16 @@ let package = Package(
     ],
     products: [
         .library(name: "SwiftUIReels", targets: ["SwiftUIReels"]),
-        .executable(name: "CLIExample", targets: ["CLIExample"]),
+//        .executable(name: "CLIExample", targets: ["CLIExample"]),
         .library(name: "VideoViews", targets: ["VideoViews"]),
-        .executable(name: "GenerateTemplate", targets: ["GenerateTemplate"]),
 
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.4.0"),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.4"),
-        .package(url: "https://github.com/shogo4405/HaishinKit.swift.git", from: "1.9.0"),
-        .package(url: "https://github.com/stencilproject/Stencil.git", from: "0.15.1"),
-        .package(url: "https://github.com/pointfreeco/swift-clocks.git", from: "1.0.2"),
-        .package(url: "https://github.com/kean/Nuke.git", from: "12.7.3"),
+//        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.4.0"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.6.4"),
+        .package(url: "https://github.com/shogo4405/HaishinKit.swift.git", branch: "main"),
+        .package(url: "https://github.com/pointfreeco/swift-clocks.git", from: "1.0.6"),
+        .package(url: "https://github.com/kean/Nuke.git", from: "12.8.0"),
 
     ],
     targets: [
@@ -30,6 +28,7 @@ let package = Package(
             name: "SwiftUIReels",
             dependencies: [
                 .product(name: "HaishinKit", package: "HaishinKit.swift"),
+                .product(name: "RTMPHaishinKit", package: "HaishinKit.swift"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Clocks", package: "swift-clocks"),
                 .product(name: "Nuke", package: "Nuke"),
@@ -37,35 +36,30 @@ let package = Package(
             path: "Sources/SwiftUIReels",
             resources: [
                 .process("Resources"),
+            ],
+            swiftSettings: [
+                .unsafeFlags(["-Xfrontend", "-strict-concurrency=minimal"])
             ]),
         .testTarget(
             name: "SwiftUIReelsTests",
             dependencies: ["SwiftUIReels", "VideoViews"]),
 
-        .executableTarget(
-            name: "CLIExample",
-            dependencies: [
-                "SwiftUIReels",
-                "VideoViews",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ],
-            path: "Examples/CLIExample"),
+//        .executableTarget(
+//            name: "CLIExample",
+//            dependencies: [
+//                "SwiftUIReels",
+//                "VideoViews",
+//                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+//            ],
+//            path: "Examples/CLIExample"),
 
         .target(
             name: "VideoViews",
             dependencies: [
                 "SwiftUIReels",
             ],
-            path: "Examples/VideoViews"),
-
-        .executableTarget(name: "GenerateTemplate", dependencies: [
-            .product(name: "Stencil", package: "Stencil"),
-            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            .product(name: "Logging", package: "swift-log"),
-        ],
-        path: "Scripts/GenerateTemplate",
-        resources: [
-            .process("Templates"),
-        ]),
-
+            path: "Examples/VideoViews",
+            swiftSettings: [
+                .unsafeFlags(["-Xfrontend", "-strict-concurrency=minimal"])
+            ]),
     ])

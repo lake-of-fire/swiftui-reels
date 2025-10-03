@@ -1,147 +1,125 @@
-//
-//  File.swift
-//
-//
-//  Created by Jordan Howlett on 6/21/24.
-//
-
-// RTMPStreaming.swift
-
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 import HaishinKit
+import RTMPHaishinKit
 import VideoToolbox
 
-public class RTMPStreaming: ObservableObject {
+@available(iOS 16.0, macOS 13.0, *)
+@MainActor
+public final class RTMPStreaming: ObservableObject {
+    private struct StreamContext {
+        let settings: LivestreamSettings
+        let connection: RTMPConnection
+        let stream: RTMPStream
+    }
+
+    private enum Track {
+        static let stream: UInt8 = UInt8.max
+    }
+
     public var renderSettings: RenderSettings
-    @Published public var isStreaming: Bool = false
-    
-    private var rtmpStreams: [RTMPStream] = []
-    private var rtmpConnections: [RTMPConnection] = []
-    private var lastSampleBufferTimestamp: CMTime?
-    
-    // Properties for frame rate logging
-    private var frameCount: Int = 0
-    private var startTime: Date?
-    private let logInterval: TimeInterval = 5.0 // Log every 5 seconds
+    @Published public private(set) var isStreaming: Bool = false
+
+    private var mixer: MediaMixer?
+    private var streamContexts: [StreamContext] = []
 
     public init(renderSettings: RenderSettings) {
         self.renderSettings = renderSettings
-        setupRTMPStreams()
     }
-    
-    private func setupRTMPStreams() {
-        guard let liveStreamSettings = renderSettings.livestreamSettings else { return }
-        
-        for settings in liveStreamSettings {
-            let rtmpConnection = RTMPConnection()
-            let rtmpStream = RTMPStream(connection: rtmpConnection)
-            
-            configureRTMPStream(rtmpStream, with: settings)
-            
-            rtmpConnection.addEventListener(.rtmpStatus, selector: #selector(rtmpStatusHandler), observer: self)
-            rtmpConnection.addEventListener(.ioError, selector: #selector(rtmpErrorHandler), observer: self)
-            
-            rtmpConnections.append(rtmpConnection)
-            rtmpStreams.append(rtmpStream)
+
+    public func startStreaming() async {
+        guard !isStreaming,
+              let livestreamSettings = renderSettings.livestreamSettings,
+              !livestreamSettings.isEmpty else {
+            return
+        }
+
+        let mixer = MediaMixer(captureSessionMode: .manual)
+        self.mixer = mixer
+
+        do {
+            try await configureMixer(mixer, with: livestreamSettings)
+            try await mixer.setFrameRate(Float64(renderSettings.fps))
+            await mixer.startRunning()
+            self.isStreaming = true
+            await publishStreams()
+        } catch {
+            LoggerHelper.shared.error("Failed to start live streaming: \(error)")
+            await teardownStreaming()
         }
     }
-    
-    private func configureRTMPStream(_ rtmpStream: RTMPStream, with streamSettings: LivestreamSettings) {
-//        rtmpStream.videoSettings.videoSize = CGSize(width: CGFloat(renderSettings.width), height: CGFloat(renderSettings.height))
-//        rtmpStream.videoSettings.profileLevel = streamSettings.profileLevel ?? kVTProfileLevel_H264_Main_AutoLevel as String
-//        rtmpStream.videoSettings.bitRate = streamSettings.bitRate ?? renderSettings.getDefaultBitrate()
-//        rtmpStream.videoSettings.profileLevel = kVTProfileLevel_H264_Baseline_AutoLevel as String
-//        rtmpStream.videoSettings.bitRate = 1200 * 1000
-//        rtmpStream.videoSettings.maxKeyFrameIntervalDuration = 2
-//        rtmpStream.videoSettings.scalingMode = .trim
-        
-        let bitrate = renderSettings.getDefaultBitrate()
-        rtmpStream.frameRate = Double(renderSettings.fps)
-//        stream.videoSettings.bitRateMode = .constant
-//        rtmpStream.sessionPreset = .hd1920x1080
-        rtmpStream.sessionPreset = .hd1920x1080
-//        let bitrate = 6800 * 1000 // 6800 Kbps in bps
-        
-        rtmpStream.videoSettings = VideoCodecSettings(
+
+    public func stopStreaming() async {
+        guard isStreaming else { return }
+        await teardownStreaming()
+    }
+
+    public func appendSampleBuffer(_ sampleBuffer: CMSampleBuffer) async {
+        guard isStreaming, let mixer else { return }
+        await mixer.append(sampleBuffer, track: Track.stream)
+    }
+
+    private func configureMixer(_ mixer: MediaMixer, with livestreamSettings: [LivestreamSettings]) async throws {
+        streamContexts.removeAll()
+
+        for settings in livestreamSettings {
+            let connection = RTMPConnection()
+            let stream = RTMPStream(connection: connection)
+
+            try await configureStream(stream, with: settings)
+            await mixer.addOutput(stream)
+
+            streamContexts.append(StreamContext(settings: settings, connection: connection, stream: stream))
+        }
+    }
+
+    private func configureStream(_ stream: RTMPStream, with settings: LivestreamSettings) async throws {
+        let videoSettings = VideoCodecSettings(
             videoSize: CGSize(width: renderSettings.width, height: renderSettings.height),
-            bitRate: bitrate,
-            // renderSettings.getDefaultBitrate(),
-//            profileLevel: kVTProfileLevel_H264_Baseline_5_2 as String,
-//            profileLevel: kVTProfileLevel_H264_Baseline_AutoLevel as String,
-            profileLevel: kVTProfileLevel_H264_Main_AutoLevel as String,
+            bitRate: settings.bitRate ?? renderSettings.getDefaultBitrate(),
+            profileLevel: settings.profileLevel ?? kVTProfileLevel_H264_Main_AutoLevel as String,
             scalingMode: .trim,
-            bitRateMode: .constant,
+            bitRateMode: .average,
             maxKeyFrameIntervalDuration: 2
         )
-        
-        rtmpStream.audioSettings.bitRate = 128_000
-        
-//        rtmpStream.bitrateStrategy = VideoAdaptiveNetBitRateStrategy(mamimumVideoBitrate: VideoCodecSettings.default.bitRate)
+
+        let audioSettings = AudioCodecSettings(
+            bitRate: 128_000,
+            format: .aac
+        )
+
+        try await stream.setVideoSettings(videoSettings)
+        try await stream.setAudioSettings(audioSettings)
     }
-    
-    public func startStreaming() {
-        guard !isStreaming else { return }
-        
-        for (index, rtmpStream) in rtmpStreams.enumerated() {
-            let streamKey = renderSettings.livestreamSettings![index].streamKey
-            rtmpStream.fcPublishName = streamKey
-            rtmpConnections[index].connect(renderSettings.livestreamSettings![index].rtmpConnection)
-            rtmpStream.publish(streamKey)
+
+    private func publishStreams() async {
+        for context in streamContexts {
+            do {
+                _ = try await context.connection.connect(context.settings.rtmpConnection)
+                try await context.stream.publish(context.settings.streamKey)
+            } catch {
+                LoggerHelper.shared.error("Failed to publish RTMP stream to \(context.settings.rtmpConnection): \(error)")
+            }
         }
-        
-        isStreaming = true
-        // resetFrameRateLogging()
     }
-    
-    public func stopStreaming() {
-        guard isStreaming else { return }
-        
-        for rtmpStream in rtmpStreams {
-            rtmpStream.close()
+
+    private func teardownStreaming() async {
+        self.isStreaming = false
+
+        let contexts = streamContexts
+        streamContexts.removeAll()
+
+        if let mixer {
+            for context in contexts {
+                await mixer.removeOutput(context.stream)
+            }
+            await mixer.stopRunning()
         }
-        for rtmpConnection in rtmpConnections {
-            rtmpConnection.close()
-        }
-        
-        isStreaming = false
-    }
-    
-    public func appendSampleBuffer(_ sampleBuffer: CMSampleBuffer) {
-        guard isStreaming else { return }
-       
-        for rtmpStream in rtmpStreams {
-            rtmpStream.append(sampleBuffer)
-        }
-        
-        // logFrameRate()
-    }
-    
-    @objc private func rtmpStatusHandler(_ notification: Notification) {
-        // Handle RTMP status
-        print("RTMP STATUS", notification)
-    }
-    
-    @objc private func rtmpErrorHandler(_ notification: Notification) {
-        print("RTMP ERROR", notification)
-        // Handle RTMP error
-    }
-    
-    private func resetFrameRateLogging() {
-        frameCount = 0
-        startTime = Date()
-    }
-    
-    private func logFrameRate() {
-        frameCount += 1
-        
-        guard let startTime = startTime else { return }
-        
-        let elapsedTime = Date().timeIntervalSince(startTime)
-        if elapsedTime >= logInterval {
-            let frameRate = Double(frameCount) / elapsedTime
-            print("Current frame rate: \(frameRate) fps")
-            resetFrameRateLogging()
+        mixer = nil
+
+        for context in contexts {
+            _ = try? await context.stream.close()
+            try? await context.connection.close()
         }
     }
 }

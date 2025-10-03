@@ -57,6 +57,7 @@ public struct StreamingVideoPlayer: View {
     }
 }
 
+@MainActor
 final class VideoFrameCaptureManager: ObservableObject {
     @Published var frame: CGImage?
     var videoLoaded = PassthroughSubject<Void, Never>()
@@ -119,7 +120,10 @@ final class VideoFrameCaptureManager: ObservableObject {
     private func addPeriodicTimeObserver() {
         let timeInterval = CMTime(seconds: 1.0 / fps, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(forInterval: timeInterval, queue: .main) { [weak self] time in
-            self?.captureCurrentFrame(at: time)
+            guard let self else { return }
+            Task { @MainActor in
+                self.captureCurrentFrame(at: time)
+            }
         }
     }
 

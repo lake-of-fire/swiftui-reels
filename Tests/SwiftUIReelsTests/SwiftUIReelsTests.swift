@@ -12,7 +12,8 @@ final class SwiftUIReelsTests: XCTestCase {
             height: 1280,
             displayScale: 2.0,
             captureDuration: .seconds(2),
-            saveVideoFile: true
+            saveVideoFile: true,
+            audioEnabled: false
         ) {
             BasicCounterView(initialCounter: 0)
         }

@@ -1,12 +1,14 @@
 import AVFoundation
 import CoreImage
 import CoreVideo
-import HaishinKit
+//import HaishinKit
 import Metal
 import SwiftUI
 import VideoToolbox
 
-class VideoRecorder {
+@available(iOS 16.0, macOS 13.0, *)
+@MainActor
+final class VideoRecorder {
     public var renderSettings: RenderSettings
     weak var parentRecorder: Recorder?
 
@@ -56,10 +58,10 @@ class VideoRecorder {
     }
 
     func startProcessingQueue() {
-        processingTask = Task {
-            for await videoFrame in frameStream.stream {
+        processingTask = Task { @MainActor in
+            for await videoFrame in self.frameStream.stream {
                 guard !Task.isCancelled else { break }
-                self.processFrame(cgImage: videoFrame.image, frameTime: videoFrame.time)
+                await self.processFrame(cgImage: videoFrame.image, frameTime: videoFrame.time)
             }
         }
     }
@@ -76,7 +78,7 @@ class VideoRecorder {
         frameStream.enqueue(cgImage, withTime: frameTime)
     }
 
-    public func processFrame(cgImage: CGImage, frameTime: CMTime) {
+    public func processFrame(cgImage: CGImage, frameTime: CMTime) async {
         guard let pixelBuffer = pixelBufferFromCGImage(cgImage, width: renderSettings.width, height: renderSettings.height) else { return }
         if renderSettings.saveVideoFile {
             guard let assetWriter = parentRecorder?.assetWriter, assetWriter.status == .writing else { return }
@@ -87,6 +89,8 @@ class VideoRecorder {
 
         guard let sampleBuffer = createCMSampleBuffer(from: pixelBuffer, presentationTime: frameTime) else { return }
 
-        parentRecorder?.rtmpStreaming.appendSampleBuffer(sampleBuffer)
+        if let recorder = parentRecorder {
+            await recorder.rtmpStreaming.appendSampleBuffer(sampleBuffer)
+        }
     }
 }

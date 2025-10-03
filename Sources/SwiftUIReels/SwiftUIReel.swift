@@ -229,6 +229,7 @@ struct SocialButton: View {
     }
 }
 
+@available(iOS 16.0, macOS 13.0, *)
 struct RecordingIndicator: View {
     let state: Recorder.RecordingState
     let isLive: Bool

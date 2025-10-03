@@ -4,8 +4,9 @@ import HaishinKit
 import SwiftUI
 
 @available(iOS 16.0, macOS 13.0, *)
+@MainActor
 public final class Recorder: ObservableObject {
-    public enum RecordingState {
+    public enum RecordingState: Sendable {
         case idle, recording, paused, finished
     }
 
@@ -16,6 +17,7 @@ public final class Recorder: ObservableObject {
     @Published public private(set) var elapsedTime: TimeInterval = 0
 
     public var recordingTask: Task<Void, Error>?
+    private var streamingTask: Task<Void, Never>?
     private let recordingCompletionContinuation = AsyncStream<Void>.makeStream()
 
     public var controlledClock: ControlledClock
@@ -53,7 +55,6 @@ public final class Recorder: ObservableObject {
         let viewWithEnv = AnyView(
             view
                 .environmentObject(self)
-                .environment(\.recorder, self)
         )
         renderer = ImageRenderer(
             content: SizedView(
@@ -82,20 +83,27 @@ public final class Recorder: ObservableObject {
             assetWriter = try AVAssetWriter(outputURL: renderSettings.tempOutputURL, fileType: .mp4)
 
             videoRecorder.setupVideoInput()
-            audioRecorder.setupAudioInput()
+            if renderSettings.audioEnabled {
+                audioRecorder.setupAudioInput()
+            }
 
             assetWriter?.startWriting()
             assetWriter?.startSession(atSourceTime: CMTime.zero)
 
             videoRecorder.startProcessingQueue()
-            rtmpStreaming.startStreaming()
+            if renderSettings.livestreamSettings?.isEmpty == false {
+                streamingTask?.cancel()
+                streamingTask = Task { @MainActor in
+                    await self.rtmpStreaming.startStreaming()
+                }
+            }
         } catch {
             LoggerHelper.shared.error("Error starting recording: \(error)")
         }
     }
 
     private func startRecordingTask() {
-        recordingTask = Task {
+        recordingTask = Task { @MainActor in
             let clock = ContinuousClock()
 
             let totalFrames = calculateTotalFrames()
@@ -106,25 +114,21 @@ public final class Recorder: ObservableObject {
                 case .recording:
                     let start = clock.now
 
-                    await captureFrame()
+                    captureFrame()
 
                     await controlledClock.advance(by: frameDuration)
-                    await MainActor.run {
-                        self.elapsedTime = self.controlledClock.elapsedTime
-                    }
+                    self.elapsedTime = self.controlledClock.elapsedTime
                     let end = clock.now
                     let elapsed = end - start
                     let sleepDuration = frameDuration - elapsed
 
                     if sleepDuration > .zero {
-//                        try await Task.sleep(for: .seconds(0.1))
                         try await Task.sleep(for: sleepDuration)
-//                        try await Task.sleep(for: frameDuration)
                     }
-                   self.hud.render()
+                    _ = self.hud.render()
 
                 case .paused:
-                   self.hud.render()
+                    _ = self.hud.render()
                     try await Task.sleep(for: frameDuration)
 
                 case .finished, .idle:
@@ -132,7 +136,7 @@ public final class Recorder: ObservableObject {
                 }
             }
 
-           self.hud.render()
+            _ = self.hud.render()
             await finishRecording()
         }
     }
@@ -140,7 +144,14 @@ public final class Recorder: ObservableObject {
     func finishRecording() async {
         videoRecorder.stopProcessingQueue()
         await videoRecorder.waitForProcessingCompletion()
-        audioRecorder.stopRecording()
+        if renderSettings.audioEnabled {
+            audioRecorder.stopRecording()
+        }
+        if let streamingTask {
+            await streamingTask.value
+        }
+        await rtmpStreaming.stopStreaming()
+        streamingTask = nil
 
         await finishWriting()
     }
@@ -167,6 +178,7 @@ public final class Recorder: ObservableObject {
         state = .finished
     }
 
+    @MainActor
     public func waitForRecordingCompletion() async {
         for await _ in recordingCompletionContinuation.stream {}
     }
@@ -186,7 +198,7 @@ public final class Recorder: ObservableObject {
         }
 
         if let outputURL = assetWriter?.outputURL, let duration = renderSettings.captureDuration {
-            if let trimmedURL = await trimVideo(at: outputURL, to: duration) {
+            if await trimVideo(at: outputURL, to: duration) != nil {
                 try? FileManager.default.removeItem(at: tempOutputURL)
             }
         } else {
@@ -259,18 +271,25 @@ public final class Recorder: ObservableObject {
         exportSession.timeRange = CMTimeRange(start: startTime, end: endTime)
 
         return await withCheckedContinuation { continuation in
-            exportSession.exportAsynchronously {
-                switch exportSession.status {
-                case .completed:
-                    continuation.resume(returning: trimmedOutputURL)
-                case .failed:
-                    LoggerHelper.shared.error("Trimming failed: \(String(describing: exportSession.error))")
-                    continuation.resume(returning: nil)
-                case .cancelled:
-                    LoggerHelper.shared.error("Trimming cancelled")
-                    continuation.resume(returning: nil)
-                default:
-                    continuation.resume(returning: nil)
+            exportSession.exportAsynchronously { [weak exportSession] in
+                Task { @MainActor in
+                    guard let session = exportSession else {
+                        continuation.resume(returning: nil)
+                        return
+                    }
+
+                    switch session.status {
+                    case .completed:
+                        continuation.resume(returning: trimmedOutputURL)
+                    case .failed:
+                        LoggerHelper.shared.error("Trimming failed: \(String(describing: session.error))")
+                        continuation.resume(returning: nil)
+                    case .cancelled:
+                        LoggerHelper.shared.error("Trimming cancelled")
+                        continuation.resume(returning: nil)
+                    default:
+                        continuation.resume(returning: nil)
+                    }
                 }
             }
         }

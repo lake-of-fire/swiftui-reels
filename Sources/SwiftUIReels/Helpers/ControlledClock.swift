@@ -2,6 +2,8 @@ import Clocks
 import CoreMedia
 import SwiftUI
 
+@available(iOS 16.0, macOS 13.0, *)
+@MainActor
 public final class ControlledClock {
     public var elapsedTime: TimeInterval = 0
     public var clock: TestClock<Duration>

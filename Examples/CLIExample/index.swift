@@ -113,6 +113,7 @@ import VideoViews
 // Or if you don't want the View to see the rendering with controls you can:
 //
 //
+/*
 @main
 struct CLIExample: App {
     @Environment(\.displayScale) private var displayScale
@@ -132,6 +133,7 @@ struct CLIExample: App {
         }
     }
 }
+ */
 
 // @main
 // enum CLIExample {
