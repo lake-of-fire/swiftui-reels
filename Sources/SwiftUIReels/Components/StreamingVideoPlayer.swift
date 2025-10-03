@@ -75,7 +75,7 @@ final class VideoFrameCaptureManager: ObservableObject {
         self.fps = 30.0 // Default FPS
         self.player = AVPlayer(url: url)
 
-        let pixelBufferAttributes: [String: Any] = [
+        let pixelBufferAttributes: [String: any Sendable] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
         ]
         self.videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: pixelBufferAttributes)

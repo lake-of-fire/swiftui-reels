@@ -266,32 +266,18 @@ public final class Recorder: ObservableObject {
         }
 
         let trimmedOutputURL = renderSettings.outputURL
-        exportSession.outputURL = trimmedOutputURL
-        exportSession.outputFileType = .mp4
         exportSession.timeRange = CMTimeRange(start: startTime, end: endTime)
 
-        return await withCheckedContinuation { continuation in
-            exportSession.exportAsynchronously { [weak exportSession] in
-                Task { @MainActor in
-                    guard let session = exportSession else {
-                        continuation.resume(returning: nil)
-                        return
-                    }
+        if FileManager.default.fileExists(atPath: trimmedOutputURL.path) {
+            try? FileManager.default.removeItem(at: trimmedOutputURL)
+        }
 
-                    switch session.status {
-                    case .completed:
-                        continuation.resume(returning: trimmedOutputURL)
-                    case .failed:
-                        LoggerHelper.shared.error("Trimming failed: \(String(describing: session.error))")
-                        continuation.resume(returning: nil)
-                    case .cancelled:
-                        LoggerHelper.shared.error("Trimming cancelled")
-                        continuation.resume(returning: nil)
-                    default:
-                        continuation.resume(returning: nil)
-                    }
-                }
-            }
+        do {
+            try await exportSession.export(to: trimmedOutputURL, as: .mp4)
+            return trimmedOutputURL
+        } catch {
+            LoggerHelper.shared.error("Trimming failed: \(error)")
+            return nil
         }
     }
 }

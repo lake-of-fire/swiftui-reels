@@ -96,7 +96,7 @@ public final class RTMPStreaming: ObservableObject {
         for context in streamContexts {
             do {
                 _ = try await context.connection.connect(context.settings.rtmpConnection)
-                try await context.stream.publish(context.settings.streamKey)
+                _ = try await context.stream.publish(context.settings.streamKey)
             } catch {
                 LoggerHelper.shared.error("Failed to publish RTMP stream to \(context.settings.rtmpConnection): \(error)")
             }

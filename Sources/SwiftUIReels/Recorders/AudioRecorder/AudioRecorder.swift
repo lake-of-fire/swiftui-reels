@@ -2,6 +2,10 @@ import AVFoundation
 import Combine
 import Foundation
 
+@MainActor private var sharedAudioEngine = AVAudioEngine()
+@MainActor private var sharedPlayerNodes: [URL: AVAudioPlayerNode] = [:]
+@MainActor private var sharedPlayingAudioSources: Set<URL> = []
+
 enum AudioRecorderError: Error {
     case failedToLoadAudio(Error)
 }
@@ -15,11 +19,17 @@ public final class AudioRecorder {
     weak var parentRecorder: Recorder?
     private var audioInput: AVAssetWriterInput?
 
-    private var audioEngine = AVAudioEngine()
-    private var playerNodes: [URL: AVAudioPlayerNode] = [:]
+    private var audioEngine: AVAudioEngine { sharedAudioEngine }
+    private var playerNodes: [URL: AVAudioPlayerNode] {
+        get { sharedPlayerNodes }
+        set { sharedPlayerNodes = newValue }
+    }
     private var audioFiles: [URL: AVAudioFile] = [:]
     private var audioBuffers: [URL: AVAudioPCMBuffer] = [:]
-    private var playingAudioSources: Set<URL> = []
+    private var playingAudioSources: Set<URL> {
+        get { sharedPlayingAudioSources }
+        set { sharedPlayingAudioSources = newValue }
+    }
 
     private var audioFormatDescription: CMAudioFormatDescription?
 
@@ -29,7 +39,9 @@ public final class AudioRecorder {
     public init(renderSettings: RenderSettings, frameTimer: FrameTimer) {
         self.renderSettings = renderSettings
         self.frameTimer = frameTimer
-        setupAudioEngine()
+        if renderSettings.audioEnabled {
+            setupAudioEngine()
+        }
     }
 
     func setParentRecorder(_ parentRecorder: Recorder) {
