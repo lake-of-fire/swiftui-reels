@@ -1,18 +1,20 @@
-#if canImport(AppKit)
-import AppKit
-#endif
-#if canImport(UIKit)
-import UIKit
-#endif
+import AVFoundation
+import AVKit
 import Foundation
 import SwiftUI
 
 @available(iOS 16.0, macOS 13.0, *)
 public struct SwiftUIReel<Content: View>: View {
     @StateObject private var recorder: Recorder
-    @State private var isVideoSaved: Bool = false
-    @State private var isAnimating = false
-    @Environment(\.openURL) private var openURL
+    @Binding private var renderedVideoData: Data?
+
+    private let previewScale: CGFloat
+
+    @State private var playbackPlayer: AVPlayer?
+    @State private var isPlaybackReady = false
+    @State private var playbackObserver: Any?
+
+    public var recorderReference: Recorder { recorder }
 
     @MainActor
     public init(
@@ -21,14 +23,19 @@ public struct SwiftUIReel<Content: View>: View {
         height: CGFloat,
         displayScale: CGFloat,
         captureDuration: Duration? = nil,
-        saveVideoFile: Bool = true,
+        saveVideoFile: Bool = false,
         livestreamSettings: [LivestreamSettings]? = nil,
+        previewScale: CGFloat = 1.0,
+        renderedVideoData: Binding<Data?> = .constant(nil),
         @ViewBuilder content: @escaping () -> Content
     ) {
         func getTypeName(of view: Content) -> String {
             let mirror = Mirror(reflecting: view)
             return String(describing: mirror.subjectType)
         }
+
+        self.previewScale = previewScale
+        self._renderedVideoData = renderedVideoData
 
         let view = content()
         let viewTypeName = getTypeName(of: view)
@@ -45,308 +52,221 @@ public struct SwiftUIReel<Content: View>: View {
         )
 
         let contentView = AnyView(view)
+        let recorderInstance = Recorder(renderSettings: renderSettings)
+        recorderInstance.setRenderer(view: contentView)
 
-        _recorder = StateObject(wrappedValue: Recorder(renderSettings: renderSettings))
-
-        recorder.setRenderer(view: contentView)
-    }
-
-    public var recorderReference: Recorder { recorder }
-
-    var borderColor: Color {
-        if recorder.state == .recording {
-            return Color.red
-        }
-
-        return Color.gray.opacity(0.3)
+        _recorder = StateObject(wrappedValue: recorderInstance)
     }
 
     public var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Content area
-                ZStack {
-                    Color.white.edgesIgnoringSafeArea(.all)
-
-                    GeometryReader { contentGeometry in
-                        if let content = recorder.renderer?.content {
-                            let renderWidth = CGFloat(recorder.renderSettings.width)
-                            let renderHeight = CGFloat(recorder.renderSettings.height)
-                            let maxWidth = contentGeometry.size.width * 0.90
-                            let maxHeight = contentGeometry.size.height * 0.90
-                            let widthRatio = maxWidth / renderWidth
-                            let heightRatio = maxHeight / renderHeight
-                            let scaleFactor = min(widthRatio, heightRatio, 1.0)
-
-                            let scaledWidth = renderWidth * scaleFactor
-                            let scaledHeight = renderHeight * scaleFactor
-
-                            content
-                                .frame(width: renderWidth, height: renderHeight)
-                                .scaleEffect(scaleFactor)
-                                .frame(width: scaledWidth, height: scaledHeight)
-                                .border(borderColor)
-                                .clipped()
-//                                .border(recorder.isRecording && !recorder.isPaused ? Color.red : Color.gray.opacity(0.3), width: 2)
-                                .position(x: contentGeometry.size.width / 2, y: contentGeometry.size.height / 2)
-                        }
-                    }
-                }
-                .frame(width: geometry.size.width * 0.8)
-
-                // Sidebar
-                VStack {
-                    VStack(alignment: .center, spacing: 10) {
-                        Text("~ SwiftUIReels")
-                            .font(.system(size: 24, weight: .black))
-                            .foregroundColor(.black)
-
-                        HStack(alignment: .center, spacing: 25) {
-                            SocialButton(imageName: "discord", url: URL(string: "https://discord.com"))
-                            SocialButton(imageName: "x", url: URL(string: "https://twitter.com"))
-                            SocialButton(imageName: "github", url: URL(string: "https://github.com"))
-                        }
-                    }
-                    .padding(.top)
-
-                    RecordingIndicator(state: recorder.state, isLive: recorder.renderSettings.livestreamSettings != nil)
-                        .padding(.top)
-
-                    Spacer()
-
-                    if let duration = recorder.renderSettings.captureDuration {
-                        ProgressView(value: Double(recorder.frameCount) / Double(Double(duration.components.seconds) * Double(recorder.renderSettings.fps)))
-                            .progressViewStyle(LinearProgressViewStyle(tint: .red))
-                            .padding()
-                    }
-
-                    VStack(spacing: 10) {
-                        Text(recorder.state == .recording || recorder.state == .paused ? "Stop" : "Start")
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .cornerRadius(8)
-                            .onTapGesture {
-                                if recorder.state == .recording || recorder.state == .paused {
-                                    recorder.stopRecording()
-                                    Task {
-                                        await recorder.waitForRecordingCompletion()
-                                    }
-                                } else {
-                                    recorder.startRecording()
-                                }
-                            }
-
-                        Text(recorder.state == .paused ? "Resume" : "Pause")
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(recorder.state == .recording ? Color.orange : Color.gray)
-                            .cornerRadius(8)
-                            .onTapGesture {
-                                if recorder.state == .paused {
-                                    recorder.resumeRecording()
-                                } else {
-                                    recorder.pauseRecording()
-                                }
-                            }
-
-                        if isVideoSaved {
-                            Text("Open Video")
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.green)
-                                .cornerRadius(8)
-                                .onTapGesture {
-                                    openOutputURL()
-                                }
-                        }
-                        Spacer()
-                    }
-                    .padding(.bottom, 50)
-                }
-                .frame(width: geometry.size.width * 0.2)
-                .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+        VStack(spacing: 12) {
+            previewSurface
+            controlRow
+        }
+        .onChange(of: recorder.state) { newValue in
+            if newValue == .recording {
+                resetPlayback()
             }
         }
-        #if canImport(AppKit)
-        .frame(width: containerSize.width,
-               height: containerSize.height)
-        #else
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        #endif
-        .onChange(of: recorder.state) { recorderState in
-            if recorderState == .finished {
-                isVideoSaved = recorder.renderSettings.saveVideoFile
-            }
-            isAnimating = recorderState == .recording
+        .onChange(of: recorder.renderedData) { data in
+            renderedVideoData = data
         }
-//        .onChange(of: recorder.isPaused) { isPaused in
-//            isAnimating = recorder.isRecording && !isPaused
-//        }
+        .onChange(of: recorder.finalOutputURL) { url in
+            guard let url else { return }
+            configurePlayback(with: url)
+        }
+        .onDisappear {
+            resetPlayback()
+        }
     }
 
-    private var containerSize: CGSize {
-        #if canImport(AppKit)
-        let width = (NSScreen.main?.visibleFrame.width ?? 800) * 0.9
-        let height = (NSScreen.main?.visibleFrame.height ?? 600) * 0.9
-        return CGSize(width: width, height: height)
-        #elseif canImport(UIKit)
-        let bounds = UIScreen.main.bounds
-        return CGSize(width: bounds.width, height: bounds.height)
-        #else
-        return CGSize(width: 800, height: 600)
-        #endif
-    }
+    private var previewSurface: some View {
+        let scale = max(previewScale, 0.01)
+        let baseWidth = CGFloat(recorder.renderSettings.width)
+        let baseHeight = CGFloat(recorder.renderSettings.height)
+        let scaledWidth = baseWidth * scale
+        let scaledHeight = baseHeight * scale
 
-    private func openOutputURL() {
-        let url = recorder.renderSettings.outputURL
-        #if canImport(AppKit)
-        NSWorkspace.shared.open(url)
-        #else
-        openURL(url)
-        #endif
-    }
-}
-
-struct SocialButton: View {
-    let imageName: String
-    let url: URL?
-    @Environment(\.openURL) private var openURL
-
-    var body: some View {
-        Image(packageResource: imageName, ofType: "png")
-            .resizable()
-            .aspectRatio(contentMode: .fit)
-            .frame(height: 30)
-            .onTapGesture {
-                if let url {
-                    openURL(url)
-                }
+        return ZStack {
+            if isPlaybackReady, let player = playbackPlayer {
+                VideoPlayer(player: player)
+                    .aspectRatio(baseWidth / max(baseHeight, 1), contentMode: .fit)
+                    .frame(width: scaledWidth, height: scaledHeight)
+                    .clipped()
+                    .onAppear {
+                        player.play()
+                    }
+            } else if let content = recorder.renderer?.content {
+                content
+                    .frame(width: baseWidth, height: baseHeight)
+                    .scaleEffect(scale)
+                    .frame(width: scaledWidth, height: scaledHeight)
+                    .clipped()
+            } else {
+                Color.black.opacity(0.05)
+                    .frame(width: scaledWidth, height: scaledHeight)
             }
+
+            RecordingStatusBadge(state: recorder.state)
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(width: scaledWidth, height: scaledHeight)
+        .background(Color.black.opacity(0.02))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(borderColor(for: recorder.state), lineWidth: 1)
+        )
+        .cornerRadius(8)
+    }
+
+    private var controlRow: some View {
+        HStack(spacing: 12) {
+            Button(action: toggleRecording) {
+                Text(recorder.state == .recording || recorder.state == .paused ? "Stop" : "Record")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(ReelButtonStyle(role: recorder.state == .recording || recorder.state == .paused ? .destructive : .primary))
+
+            Button(action: togglePause) {
+                Text(recorder.state == .paused ? "Resume" : "Pause")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(ReelButtonStyle(role: .secondary))
+            .disabled(recorder.state == .idle || recorder.state == .finished)
+        }
+    }
+
+    private func toggleRecording() {
+        switch recorder.state {
+        case .idle, .finished:
+            recorder.startRecording()
+        case .recording, .paused:
+            recorder.stopRecording()
+        }
+    }
+
+    private func togglePause() {
+        switch recorder.state {
+        case .recording:
+            recorder.pauseRecording()
+        case .paused:
+            recorder.resumeRecording()
+        default:
+            break
+        }
+    }
+
+    private func configurePlayback(with url: URL) {
+        resetPlayback()
+        let player = AVPlayer(url: url)
+        player.actionAtItemEnd = .none
+
+        let observer = NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: player.currentItem, queue: .main) { _ in
+            player.seek(to: .zero)
+            player.play()
+        }
+
+        playbackPlayer = player
+        playbackObserver = observer
+        isPlaybackReady = true
+        playbackPlayer?.play()
+    }
+
+    private func resetPlayback() {
+        playbackPlayer?.pause()
+        playbackPlayer = nil
+        if let observer = playbackObserver {
+            NotificationCenter.default.removeObserver(observer)
+            playbackObserver = nil
+        }
+        isPlaybackReady = false
+    }
+
+    private func borderColor(for state: Recorder.RecordingState) -> Color {
+        switch state {
+        case .recording:
+            return .red
+        case .paused:
+            return .orange
+        case .finished:
+            return .green
+        case .idle:
+            return Color.gray.opacity(0.4)
+        }
+    }
+
+    deinit {
+        if let observer = playbackObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 }
 
 @available(iOS 16.0, macOS 13.0, *)
-struct RecordingIndicator: View {
+private struct RecordingStatusBadge: View {
     let state: Recorder.RecordingState
-    let isLive: Bool
-    @State private var isAnimating = false
-
-    var stateText: String {
-        if state == .recording {
-            return "Recording"
-        } else if state == .paused {
-            return "Paused"
-        }
-        return "Finished"
-    }
-
-    var borderColor: Color {
-        if state == .recording {
-            return Color.red
-        }
-
-        return Color.gray.opacity(0.3)
-    }
 
     var body: some View {
-        HStack {
+        switch state {
+        case .recording:
+            label("Recording", color: .red)
+        case .paused:
+            label("Paused", color: .orange)
+        case .finished:
+            label("Ready", color: .green)
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func label(_ text: String, color: Color) -> some View {
+        HStack(spacing: 6) {
             Circle()
-                .fill(borderColor)
-                .frame(width: 12, height: 12)
-                .scaleEffect(isAnimating ? 1.2 : 1.0)
-                .animation(state == .recording ? Animation.easeInOut(duration: 0.6).repeatForever(autoreverses: true) : .default, value: isAnimating)
-
-            if isLive {
-                Text("LIVE")
-                    .foregroundColor(.white)
-                    .font(.caption)
-                    .padding(.horizontal, 4)
-                    .background(Color.red)
-                    .cornerRadius(4)
-            }
-
-            Text(stateText)
-                .foregroundColor(.black)
+                .fill(color)
+                .frame(width: 10, height: 10)
+            Text(text)
                 .font(.caption)
+                .foregroundStyle(color)
         }
-        .padding(8)
-        .background(Color.white)
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.gray, lineWidth: 1)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.85))
         )
-        .onAppear {
-            isAnimating = state == .recording
-        }
-        .onChange(of: state) { newState in
-            isAnimating = newState == .recording
-        }
     }
 }
 
-//
-//  File.swift
-//
-//
-//  Created by Jordan Howlett on 6/20/24.
-//
+@available(iOS 16.0, macOS 13.0, *)
+private struct ReelButtonStyle: ButtonStyle {
+    enum Role {
+        case primary
+        case secondary
+        case destructive
+    }
 
-// import AppKit
-// import Foundation
-// import Logging
-// import SwiftUI
-//
-//// @MainActor
-// public struct SwiftUIReel<Content: View>: View {
-//    @State public var recorder: Recorder
-//
-//    @MainActor
-//    public init(
-//        fps: Int32,
-//        width: CGFloat,
-//        height: CGFloat,
-//        displayScale: CGFloat,
-//        captureDuration: Duration? = nil,
-//        saveVideoFile: Bool = true,
-//        livestreamSettings: [LivestreamSettings]? = nil,
-//        @ViewBuilder content: @escaping () -> Content
-//    ) {
-//        let renderSettings = RenderSettings(
-//            width: Int(width),
-//            height: Int(height),
-//            fps: fps,
-//            displayScale: displayScale,
-//            captureDuration: captureDuration,
-//            saveVideoFile: saveVideoFile,
-//            livestreamSettings: livestreamSettings
-//        )
-//
-//        let contentView = AnyView(content())
-//
-//        _recorder = State(wrappedValue: Recorder(renderSettings: renderSettings))
-//
-//        recorder.setRenderer(view: contentView)
-//    }
-//
-//    public var body: some View {
-//        recorder.renderer?.content
-//            .onAppear {
-//                print("Onappear start recording")
-//                recorder.startRecording()
-//            }
-//            .onDisappear {
-//                print("done recording")
-//                recorder.stopRecording()
-//            }
-////            .onChange(of: recorder.isRecording) { isRecording in
-////                if !isRecording {
-////                    NSApplication.shared.terminate(nil)
-////                }
-////            }
-//    }
-// }
+    let role: Role
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.callout.weight(.semibold))
+            .padding(.vertical, 10)
+            .foregroundColor(.white)
+            .background(backgroundColor.opacity(configuration.isPressed ? 0.7 : 1))
+            .cornerRadius(8)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+
+    private var backgroundColor: Color {
+        switch role {
+        case .primary:
+            return .blue
+        case .secondary:
+            return .gray
+        case .destructive:
+            return .red
+        }
+    }
+}

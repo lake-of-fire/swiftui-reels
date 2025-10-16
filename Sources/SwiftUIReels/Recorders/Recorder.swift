@@ -1,5 +1,6 @@
 import AVFoundation
 import Combine
+import Foundation
 import HaishinKit
 import SwiftUI
 
@@ -15,6 +16,8 @@ public final class Recorder: ObservableObject {
     @Published public private(set) var state: RecordingState = .idle
     @Published public private(set) var frameCount: Int = 0
     @Published public private(set) var elapsedTime: TimeInterval = 0
+    @Published public private(set) var renderedData: Data?
+    @Published public private(set) var finalOutputURL: URL?
 
     public var recordingTask: Task<Void, Error>?
     private var streamingTask: Task<Void, Never>?
@@ -73,6 +76,8 @@ public final class Recorder: ObservableObject {
         frameTimer.start()
         frameCount = 0
         elapsedTime = 0
+        renderedData = nil
+        finalOutputURL = nil
 
         setupRecording()
         startRecordingTask()
@@ -183,28 +188,60 @@ public final class Recorder: ObservableObject {
         for await _ in recordingCompletionContinuation.stream {}
     }
 
+    @MainActor
     private func finishWriting() async {
-        guard renderSettings.saveVideoFile else {
+        guard let assetWriter else {
             recordingCompletionContinuation.continuation.finish()
             return
         }
 
-        await assetWriter?.finishWriting()
+        await assetWriter.finishWriting()
 
-        guard let tempOutputURL = assetWriter?.outputURL else {
+        guard let tempOutputURL = assetWriter.outputURL else {
             LoggerHelper.shared.error("No output url")
             recordingCompletionContinuation.continuation.finish()
             return
         }
 
-        if let outputURL = assetWriter?.outputURL, let duration = renderSettings.captureDuration {
-            if await trimVideo(at: outputURL, to: duration) != nil {
-                try? FileManager.default.removeItem(at: tempOutputURL)
+        var workingURL = tempOutputURL
+
+        if let duration = renderSettings.captureDuration {
+            let destinationURL: URL
+            if renderSettings.saveVideoFile {
+                destinationURL = renderSettings.outputURL
+            } else {
+                destinationURL = renderSettings.tempDirectoryURL
+                    .appendingPathComponent("\(renderSettings.videoFilename)-trimmed")
+                    .appendingPathExtension(renderSettings.videoFilenameExt)
             }
-        } else {
-            try? FileManager.default.moveItem(at: tempOutputURL, to: renderSettings.outputURL)
+
+            if let trimmedURL = await trimVideo(at: tempOutputURL, to: duration, destinationURL: destinationURL) {
+                workingURL = trimmedURL
+                if workingURL != tempOutputURL {
+                    try? FileManager.default.removeItem(at: tempOutputURL)
+                }
+            }
+        } else if renderSettings.saveVideoFile {
+            let destinationURL = renderSettings.outputURL
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try? FileManager.default.removeItem(at: destinationURL)
+            }
+            do {
+                try FileManager.default.moveItem(at: tempOutputURL, to: destinationURL)
+                workingURL = destinationURL
+            } catch {
+                LoggerHelper.shared.error("Error moving video file: \(error)")
+            }
         }
 
+        do {
+            let data = try Data(contentsOf: workingURL)
+            renderedData = data
+        } catch {
+            LoggerHelper.shared.error("Failed to load video data: \(error)")
+        }
+
+        finalOutputURL = workingURL
         recordingCompletionContinuation.continuation.finish()
     }
 
@@ -255,7 +292,7 @@ public final class Recorder: ObservableObject {
         }
     }
 
-    private func trimVideo(at url: URL, to duration: Duration) async -> URL? {
+    private func trimVideo(at url: URL, to duration: Duration, destinationURL: URL) async -> URL? {
         let asset = AVAsset(url: url)
         let startTime = CMTime.zero
         let endTime = CMTime(seconds: Double(duration.components.seconds), preferredTimescale: 600)
@@ -265,16 +302,15 @@ public final class Recorder: ObservableObject {
             return nil
         }
 
-        let trimmedOutputURL = renderSettings.outputURL
         exportSession.timeRange = CMTimeRange(start: startTime, end: endTime)
 
-        if FileManager.default.fileExists(atPath: trimmedOutputURL.path) {
-            try? FileManager.default.removeItem(at: trimmedOutputURL)
+        if FileManager.default.fileExists(atPath: destinationURL.path) {
+            try? FileManager.default.removeItem(at: destinationURL)
         }
 
         do {
-            try await exportSession.export(to: trimmedOutputURL, as: .mp4)
-            return trimmedOutputURL
+            try await exportSession.export(to: destinationURL, as: .mp4)
+            return destinationURL
         } catch {
             LoggerHelper.shared.error("Trimming failed: \(error)")
             return nil
